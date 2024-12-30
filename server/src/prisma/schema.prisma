@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(uuid()) @db.VarChar(36)
+  email           String        @unique
+  username        String        @unique
+  password        String
+  reputationScore Float         @default(0)
+  avatarUrl       String?
+  isVerified      Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  listings        Listing[]
+  sellerReviews   Review[]      @relation("SellerReview")
+  buyerReviews    Review[]      @relation("BuyerReview")
+  sentMessages    Message[]     @relation("SentMessages")
+  receivedMessages Message[]    @relation("ReceivedMessages")
+  buyTransactions Transaction[] @relation("BuyerTransactions")
+  sellTransactions Transaction[] @relation("SellerTransactions")
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  parentId    Int?
+  parent      Category? @relation("SubCategories", fields: [parentId], references: [id])
+  children    Category[] @relation("SubCategories")
+  games       Game[]
+}
+
+model Game {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?   @db.Text
+  categoryId  Int
+  releaseDate DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  category    Category  @relation(fields: [categoryId], references: [id])
+  listings    Listing[]
+}
+
+model Listing {
+  id          Int           @id @default(autoincrement())
+  title       String
+  description String        @db.Text
+  price       Decimal       @db.Decimal(10, 2)
+  currency    String        @default("USD")
+  status      ListingStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  // Relations
+  userId      String
+  gameId      Int
+  user        User          @relation(fields: [userId], references: [id])
+  game        Game          @relation(fields: [gameId], references: [id])
+  transactions Transaction[]
+}
+
+model Transaction {
+  id          Int        @id @default(autoincrement())
+  amount      Decimal    @db.Decimal(10, 2)
+  status      TxStatus   @default(PENDING)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  completedAt DateTime?
+  
+  // Relations
+  listingId   Int
+  buyerId     String
+  sellerId    String
+  listing     Listing    @relation(fields: [listingId], references: [id])
+  buyer       User       @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller      User       @relation("SellerTransactions", fields: [sellerId], references: [id])
+  reviews     Review[]
+  messages    Message[]
+}
+
+model Review {
+  id            Int       @id @default(autoincrement())
+  rating        Int       @db.TinyInt
+  comment       String?   @db.Text
+  createdAt     DateTime  @default(now())
+  
+  // Relations
+  transactionId Int
+  sellerId     String
+  buyerId      String
+  transaction  Transaction @relation(fields: [transactionId], references: [id])
+  seller      User        @relation("SellerReview", fields: [sellerId], references: [id])
+  buyer       User        @relation("BuyerReview", fields: [buyerId], references: [id])
+}
+
+model Message {
+  id            Int       @id @default(autoincrement())
+  content       String    @db.Text
+  isRead        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  
+  // Relations
+  senderId      String
+  receiverId    String
+  transactionId Int?
+  sender        User      @relation("SentMessages", fields: [senderId], references: [id])
+  receiver      User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+}
+
+enum ListingStatus {
+  ACTIVE
+  PENDING
+  SOLD
+  CANCELLED
+}
+
+enum TxStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
