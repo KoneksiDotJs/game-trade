@@ -6,7 +6,7 @@ import { RegisterDTO, LoginDTO } from "../types/auth.types";
 import { sendSuccess, sendError } from "../utils/response";
 import { config } from "../config/env";
 import { transporter } from "../config/mail";
-import { getVerificationEmailTemplate } from "../utils/mail-template";
+import { getResetPasswordTemplate, getVerificationEmailTemplate } from "../utils/mail-template";
 
 export const register: RequestHandler<{}, any, RegisterDTO> = async (
   req,
@@ -80,6 +80,36 @@ export const verifyEmail: RequestHandler = async (req, res): Promise<void> => {
   }
 };
 
+export const resendVerification: RequestHandler = async (
+  req,
+  res
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    
+    if (!user) throw new Error("User not found");
+    if (user.isVerified) throw new Error("Email already verified");
+
+    const token = jwt.sign(
+      { id: user.id, email, used: false },
+      config.jwtSecret,
+      { expiresIn: "1h" }
+    );
+
+    await transporter.sendMail({
+      from: config.emailUser,
+      to: email,
+      subject: "Verify Your Email",
+      html: getVerificationEmailTemplate(token)
+    });
+
+    res.json(sendSuccess({ message: "Verification email resent" }));
+  } catch (error) {
+    res.status(400).json(sendError((error as Error).message));
+  }
+};
+
 export const login: RequestHandler<{}, any, LoginDTO> = async (
   req,
   res
@@ -89,17 +119,74 @@ export const login: RequestHandler<{}, any, LoginDTO> = async (
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) throw new Error("Invalid credentials");
+    if (!user.isVerified) throw new Error("Please verify your email first");
 
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) throw new Error("Invalid credentials");
 
     const token = jwt.sign(
       { id: user.id, email: user.email },
-      config.jwtSecret
+      config.jwtSecret,
+      { expiresIn: "7d" }
     );
 
     res.json(sendSuccess({ token }));
   } catch (error) {
     res.status(401).json(sendError((error as Error).message));
+  }
+};
+
+export const forgotPassword: RequestHandler = async (
+  req,
+  res
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw new Error("User not found");
+
+    const token = jwt.sign(
+      { id: user.id, email, type: "reset" },
+      config.jwtSecret,
+      { expiresIn: "1h" }
+    );
+
+    await transporter.sendMail({
+      from: config.emailUser,
+      to: email,
+      subject: "Reset Password",
+      html: getResetPasswordTemplate(token)
+    });
+
+    res.json(sendSuccess({ message: "Reset password link sent to your email" }));
+  } catch (error) {
+    res.status(400).json(sendError((error as Error).message));
+  }
+};
+
+export const resetPassword: RequestHandler = async (
+  req,
+  res
+): Promise<void> => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    const decoded = jwt.verify(token, config.jwtSecret) as {
+      id: string;
+      email: string;
+      type: string;
+    };
+
+    if (decoded.type !== "reset") throw new Error("Invalid token type");
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: decoded.id },
+      data: { password: hashedPassword }
+    });
+
+    res.json(sendSuccess({ message: "Password reset successfully" }));
+  } catch (error) {
+    res.status(400).json(sendError((error as Error).message));
   }
 };
