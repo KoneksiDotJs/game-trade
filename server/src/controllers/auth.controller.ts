@@ -1,9 +1,12 @@
 import { RequestHandler } from "express";
-import prisma from "../config/db"
+import prisma from "../config/db";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { RegisterDTO, LoginDTO } from "../types/auth.types";
 import { sendSuccess, sendError } from "../utils/response";
+import { config } from "../config/env";
+import { transporter } from "../config/mail";
+import { getVerificationEmailTemplate } from "../utils/mail-template";
 
 export const register: RequestHandler<{}, any, RegisterDTO> = async (
   req,
@@ -23,11 +26,55 @@ export const register: RequestHandler<{}, any, RegisterDTO> = async (
     });
 
     const token = jwt.sign(
-      { id: user.id, email: user.email },
-      process.env.JWT_SECRET!
+      { id: user.id, email: user.email, used: false },
+      config.jwtSecret,
+      { expiresIn: "1h" }
     );
 
-    res.status(201).json(sendSuccess({ token }));
+    await transporter.sendMail({
+      from: config.emailUser,
+      to: email,
+      subject: 'Verify Your Email',
+      html: getVerificationEmailTemplate(token)
+    });
+
+    res.status(201).json(sendSuccess({ message: 'Please check your email to verify your account', token }));
+  } catch (error) {
+    res.status(400).json(sendError((error as Error).message));
+  }
+};
+
+export const verifyEmail: RequestHandler = async (req, res): Promise<void> => {
+  try {
+    const { token } = req.query;
+    if (!token) throw new Error("No token provided");
+
+    const decoded = jwt.verify(token as string, config.jwtSecret) as {
+      id: string;
+      email: string;
+      used: boolean;
+    };
+
+    if (decoded.used) {
+      throw new Error("Token already used");
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+    });
+
+    if (!user || user.isVerified) {
+      throw new Error("Invalid token or account already verified");
+    }
+
+    await prisma.user.update({
+      where: { id: decoded.id },
+      data: { isVerified: true },
+    });
+
+    // Create new token with used:true to invalidate it
+    jwt.sign({ ...decoded, used: true }, config.jwtSecret);
+    res.json(sendSuccess({ message: "Email verified successfully" }));
   } catch (error) {
     res.status(400).json(sendError((error as Error).message));
   }
@@ -48,7 +95,7 @@ export const login: RequestHandler<{}, any, LoginDTO> = async (
 
     const token = jwt.sign(
       { id: user.id, email: user.email },
-      process.env.JWT_SECRET!
+      config.jwtSecret
     );
 
     res.json(sendSuccess({ token }));
