@@ -44,6 +44,8 @@ model Game {
   description String?   @db.Text
   categoryId  Int
   releaseDate DateTime?
+  imageUrl    String?   // Store image URL
+  imageId     String?   // Store public_id for Cloudinary
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   
