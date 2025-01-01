@@ -32,10 +32,14 @@ model Category {
   id          Int       @id @default(autoincrement())
   name        String    @unique
   description String?
-  parentId    Int?
-  parent      Category? @relation("SubCategories", fields: [parentId], references: [id])
-  children    Category[] @relation("SubCategories")
   games       Game[]
+}
+
+model ServiceType {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique // 'Account', 'Top Up', 'Boosting'
+  description String?
+  listings    Listing[]
 }
 
 model Game {
@@ -67,6 +71,8 @@ model Listing {
   // Relations
   userId      String
   gameId      Int
+  serviceTypeId Int
+  serviceType   ServiceType   @relation(fields: [serviceTypeId], references: [id])
   user        User          @relation(fields: [userId], references: [id])
   game        Game          @relation(fields: [gameId], references: [id])
   transactions Transaction[]

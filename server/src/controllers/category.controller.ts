@@ -7,13 +7,20 @@ export const createCategory: RequestHandler = async (
   res
 ): Promise<void> => {
   try {
-    const { name, description, parentId } = req.body;
+    const { name, description } = req.body;
+
+    const exists = await prisma.category.findUnique({
+      where: { name },
+    });
+
+    if (exists) {
+      throw new Error("Category already exists");
+    }
 
     const category = await prisma.category.create({
       data: {
         name,
         description,
-        parentId: parentId ? parseInt(parentId) : null,
       },
     });
 
@@ -30,8 +37,6 @@ export const getCategories: RequestHandler = async (
   try {
     const categories = await prisma.category.findMany({
       include: {
-        parent: true,
-        children: true,
         games: true,
       },
     });
@@ -51,8 +56,6 @@ export const getCategoryById: RequestHandler = async (
     const category = await prisma.category.findUnique({
       where: { id: parseInt(id) },
       include: {
-        parent: true,
-        children: true,
         games: true,
       },
     });
@@ -70,14 +73,13 @@ export const updateCategory: RequestHandler = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const { name, description, parentId } = req.body;
+    const { name, description } = req.body;
 
     const category = await prisma.category.update({
       where: { id: parseInt(id) },
       data: {
         name,
         description,
-        parentId: parentId ? parseInt(parentId) : null,
       },
     });
 
@@ -93,6 +95,13 @@ export const deleteCategory: RequestHandler = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    const hasGames = await prisma.game.findFirst({
+      where: { categoryId: parseInt(id) },
+    });
+
+    if (hasGames) {
+      throw new Error("Cannot delete category with existing games");
+    }
     await prisma.category.delete({
       where: { id: parseInt(id) },
     });
