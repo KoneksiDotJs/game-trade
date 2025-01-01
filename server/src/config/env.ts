@@ -10,4 +10,7 @@ export const config = {
   dbUrl: process.env.DATABASE_URL!,
   emailUser: process.env.EMAIL_USER!,
   emailPassword: process.env.EMAIL_PASSWORD!,
+  cloudinaryName: process.env.CLOUDINARY_NAME!,
+  cloudinaryApiKey: process.env.CLOUDINARY_API_KEY!,
+  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET!,
 }

@@ -2,9 +2,11 @@ import express from "express";
 import cors from "cors";
 import { config } from "./config/env";
 import { corsOptions } from "./config/cors";
+import prisma from "./config/db";
 import authRoutes from "./routes/auth.routes";
 import categoryRoutes from "./routes/category.routes";
-import prisma from "./config/db";
+import serviceTypeRoutes from "./routes/servicetype.routes";
+import gameRoutes from "./routes/game.routes";
 
 const app = express();
 
@@ -13,6 +15,8 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/service-type", serviceTypeRoutes)
+app.use("/api/games", gameRoutes)
 
 const startServer = async () => {
   try {
