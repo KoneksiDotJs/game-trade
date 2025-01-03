@@ -9,3 +9,33 @@
 !.yarn/versions
 
 .env
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Build
+/build
+/dist
+.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+
+# Testing
+/coverage
+.nyc_output
+
+# Optional npm cache directory
+.npm
+
+/uploads
