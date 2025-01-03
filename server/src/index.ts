@@ -8,6 +8,7 @@ import categoryRoutes from "./routes/category.routes";
 import serviceTypeRoutes from "./routes/servicetype.routes";
 import gameRoutes from "./routes/game.routes";
 import listingRoutes from "./routes/listing.routes";
+import userRoutes from "./routes/user.routes";
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/service-type", serviceTypeRoutes)
 app.use("/api/games", gameRoutes)
 app.use("/api/listings", listingRoutes)
+app.use("/api/users", userRoutes)
 
 const startServer = async () => {
   try {
