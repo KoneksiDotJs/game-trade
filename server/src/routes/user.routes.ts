@@ -17,7 +17,7 @@ router.get('/stats', authenticate, getUserStats)
 router.get('/:userId/listings', getUserListings)
 
 //admin routes
-router.get('/users', authenticate, hasRole([Role.ADMIN]), getAllUsers)
+router.get('/', authenticate, hasRole([Role.ADMIN]), getAllUsers)
 router.put('/listings/:id/status', authenticate, hasRole([Role.MODERATOR]), updateListingStatus)
 
 export default router;

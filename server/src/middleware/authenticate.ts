@@ -29,7 +29,7 @@ export const authenticate = async (
       throw new Error("Unauthorized");
     }
 
-    req.user = decoded;
+    req.user = user;
     next();
   } catch (error) {
     res.status(401).json(sendError((error as Error).message));

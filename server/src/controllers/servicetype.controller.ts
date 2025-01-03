@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { sendError, sendSuccess } from "../utils/response";
 import prisma from "../config/db";
-import { ServiceTypeEnum } from "../types/serviceType.types";
+import { ServiceTypeEnum } from "../types/servicetype.types";
 
 export const createServiceType: RequestHandler = async (
   req,

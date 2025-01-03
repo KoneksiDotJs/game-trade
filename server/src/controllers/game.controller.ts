@@ -107,7 +107,15 @@ export const updateGame: RequestHandler = async (req, res): Promise<void> => {
       throw new Error("Game not found");
     }
 
-    let imageData = {};
+    // Create updateData object only with provided fields
+    const updateData: any = {};
+
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+    if (categoryId) updateData.categoryId = parseInt(categoryId);
+    if (releaseDate !== undefined) {
+      updateData.releaseDate = releaseDate ? new Date(releaseDate) : null;
+    }
 
     if (image) {
       // delete old image if exists
@@ -120,21 +128,13 @@ export const updateGame: RequestHandler = async (req, res): Promise<void> => {
         folder: "games",
       });
 
-      imageData = {
-        imageUrl: result.secure_url,
-        imageId: result.public_id,
-      };
+      updateData.imageUrl = result.secure_url;
+      updateData.imageId = result.public_id;
     }
 
     const game = await prisma.game.update({
       where: { id: parseInt(id) },
-      data: {
-        title,
-        description,
-        categoryId: parseInt(categoryId),
-        releaseDate: releaseDate ? new Date(releaseDate) : null,
-        ...imageData,
-      },
+      data: updateData,
     });
 
     res.status(200).json(sendSuccess(game));

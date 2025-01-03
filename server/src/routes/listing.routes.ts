@@ -5,10 +5,10 @@ import { upload } from "../middleware/multer";
 
 const router = Router();
 
-router.post('/', authenticate, upload.array('images', 5), createListing)
+router.post('/', authenticate, upload.array('files', 5), createListing)
 router.get('/', getListings)
 router.get('/:id', getListingById)
-router.put('/:id', authenticate, upload.array('images', 5), updateListing)
+router.put('/:id', authenticate, upload.array('files', 5), updateListing)
 router.delete('/:id', authenticate, deleteListing)
 
 export default router;
