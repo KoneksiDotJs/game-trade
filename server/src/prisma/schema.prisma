@@ -12,6 +12,7 @@ model User {
   email           String        @unique
   username        String        @unique
   password        String
+  role            Role          @default(USER)
   reputationScore Float         @default(0)
   avatarUrl       String?       // Cloudinary secure URL
   avatarId        String?       // Cloudinary public_id
@@ -78,6 +79,7 @@ model Listing {
   game        Game          @relation(fields: [gameId], references: [id])
   transactions Transaction[]
   images      ListingImage[] // New relation
+  moderationLogs moderationLog[]
 }
 
 model ListingImage {
@@ -139,6 +141,18 @@ model Message {
   transaction   Transaction? @relation(fields: [transactionId], references: [id])
 }
 
+model moderationLog {
+  id           Int      @id @default(autoincrement())
+  moderatorId  String
+  listingId    Int
+  action       String
+  reason       String?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  listing   Listing  @relation(fields: [listingId], references: [id])
+}
+
 enum ListingStatus {
   ACTIVE
   PENDING
@@ -151,4 +165,10 @@ enum TxStatus {
   COMPLETED
   CANCELLED
   DISPUTED
+}
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
 }

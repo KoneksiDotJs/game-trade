@@ -132,3 +132,24 @@ export const getUserStats: RequestHandler = async (
     res.status(500).json(sendError((error as Error).message));
   }
 };
+
+export const getAllUsers: RequestHandler = async (req, res): Promise<void> => {
+    try {
+        const users = await prisma.user.findMany({
+            select: {
+                id: true,
+                username: true,
+                email: true,
+                avatarUrl: true,
+                isVerified: true,
+                role: true,
+                reputationScore: true,
+                createdAt: true,
+            }
+        })
+
+        res.status(200).json(sendSuccess(users));
+    } catch (error) {
+        res.status(500).json(sendError((error as Error).message));
+    }
+}
