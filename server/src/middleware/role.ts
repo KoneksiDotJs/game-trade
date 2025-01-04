@@ -1,5 +1,5 @@
 import { RequestHandler } from "express";
-import { Role } from "../types/user.types";
+import { Role } from "@prisma/client";
 import { sendError } from "../utils/response";
 
 export const hasRole = (roles: Role[]): RequestHandler => {

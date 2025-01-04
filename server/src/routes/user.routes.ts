@@ -3,7 +3,7 @@ import { authenticate } from "../middleware/authenticate";
 import { getAllUsers, getProfile, getUserListings, getUserStats, updateProfile } from "../controllers/user.controller";
 import { upload } from "../middleware/multer";
 import { hasRole } from "../middleware/role";
-import { Role } from "../types/user.types";
+import { Role } from "@prisma/client";
 import { updateListingStatus } from "../controllers/moderator.controller";
 
 const router = Router();
