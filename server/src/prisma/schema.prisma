@@ -96,6 +96,8 @@ model Transaction {
   id          Int        @id @default(autoincrement())
   amount      Decimal    @db.Decimal(10, 2)
   status      TxStatus   @default(PENDING)
+  stripePaymentIntentId String?  @unique
+  paymentStatus       String?    @default("pending")
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   completedAt DateTime?

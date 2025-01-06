@@ -1,6 +1,9 @@
 import { RequestHandler } from "express";
 import { sendError, sendSuccess } from "../utils/response";
 import prisma from "../config/db";
+import { StripeService } from "../service/stripe.service";
+
+const stripeService = new StripeService()
 
 export const createTransaction: RequestHandler = async (
   req,
@@ -39,12 +42,18 @@ export const createTransaction: RequestHandler = async (
       },
     });
 
+    // create stripe payment intent
+    const paymentIntent = await stripeService.createPaymentIntent(
+        transaction.id,
+        Number(transaction.amount)
+    )
+
     await prisma.listing.update({
       where: { id: parseInt(listingId) },
       data: { status: "PENDING" },
     });
 
-    res.status(201).json(sendSuccess(transaction));
+    res.status(201).json(sendSuccess({transaction, clientSecret: paymentIntent.client_secret}));
   } catch (error) {
     res.status(500).json(sendError((error as Error).message));
   }
