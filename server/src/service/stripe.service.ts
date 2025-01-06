@@ -17,6 +17,10 @@ export class StripeService {
     return paymentIntent;
   }
 
+  async cancelPaymentIntent(paymentIntentId: string) {
+    await stripe.paymentIntents.cancel(paymentIntentId);
+  }
+
   async handleWebhookEvent(event: any) {
     switch (event.type) {
       case "payment_intent.succeeded":

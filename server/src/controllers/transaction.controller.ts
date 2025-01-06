@@ -3,7 +3,7 @@ import { sendError, sendSuccess } from "../utils/response";
 import prisma from "../config/db";
 import { StripeService } from "../service/stripe.service";
 
-const stripeService = new StripeService()
+const stripeService = new StripeService();
 
 export const createTransaction: RequestHandler = async (
   req,
@@ -44,16 +44,35 @@ export const createTransaction: RequestHandler = async (
 
     // create stripe payment intent
     const paymentIntent = await stripeService.createPaymentIntent(
-        transaction.id,
-        Number(transaction.amount)
-    )
+      transaction.id,
+      Number(transaction.amount)
+    );
+
+    // Update transaction with payment intent ID
+    await prisma.transaction.update({
+      where: { id: transaction.id },
+      data: {
+        stripePaymentIntentId: paymentIntent.id,
+      },
+    });
+
+    const updatedTransaction = await prisma.transaction.findUnique({
+      where: { id: transaction.id },
+    });
 
     await prisma.listing.update({
       where: { id: parseInt(listingId) },
       data: { status: "PENDING" },
     });
 
-    res.status(201).json(sendSuccess({transaction, clientSecret: paymentIntent.client_secret}));
+    res
+      .status(201)
+      .json(
+        sendSuccess({
+          updatedTransaction,
+          clientSecret: paymentIntent.client_secret,
+        })
+      );
   } catch (error) {
     res.status(500).json(sendError((error as Error).message));
   }
@@ -101,8 +120,28 @@ export const getUserTransactions: RequestHandler = async (
         OR: [{ buyerId: userId }, { sellerId: userId }],
       },
       include: {
-        buyer: true,
-        seller: true,
+        buyer: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+            reputationScore: true,
+            avatarUrl: true,
+            isVerified: true,
+          },
+        },
+        seller: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            role: true,
+            reputationScore: true,
+            avatarUrl: true,
+            isVerified: true,
+          },
+        },
         listing: true,
       },
     });
@@ -136,12 +175,25 @@ export const updateTransactionStatus: RequestHandler = async (
       res.status(403).json(sendError("Unauthorized"));
     }
 
+    // Cancel payment intent if transaction is cancelled
+    if (status === "CANCELLED" && transaction.stripePaymentIntentId) {
+      await stripeService.cancelPaymentIntent(
+        transaction.stripePaymentIntentId
+      );
+    }
+
     // update transaction and listing status
     const updatedTransaction = await prisma.transaction.update({
       where: { id: parseInt(id) },
       data: {
         status,
         completedAt: status === "COMPLETED" ? new Date() : null,
+        paymentStatus:
+          status === "CANCELLED"
+            ? "cancelled"
+            : status === "COMPLETED"
+            ? "paid"
+            : "pending",
       },
     });
 
