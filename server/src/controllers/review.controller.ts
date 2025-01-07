@@ -8,6 +8,7 @@ export const createReview: RequestHandler = async (req, res): Promise<void> => {
     const userId = req.user?.id;
 
     if (!userId) throw new Error("User not authenticated");
+    if (rating < 1 || rating > 5) throw new Error("Rating must be between 1 and 5");
 
     const transaction = await prisma.transaction.findUnique({
       where: { id: parseInt(transactionId) },
@@ -16,6 +17,13 @@ export const createReview: RequestHandler = async (req, res): Promise<void> => {
     if (!transaction) throw new Error("Transaction not found");
     if (transaction.status !== "COMPLETED")
       throw new Error("Transaction is not completed");
+
+    // check if review already exists
+    const existingReview = await prisma.review.findFirst({
+      where: { transactionId: parseInt(transactionId), buyerId: userId },
+    })
+
+    if (existingReview) throw new Error("Review already exists");
 
     const review = await prisma.review.create({
       data: {
@@ -27,12 +35,20 @@ export const createReview: RequestHandler = async (req, res): Promise<void> => {
       },
     });
 
-    // update seller reputation score
+    // calculate new average rating
+    const sellerReviews = await prisma.review.findMany({
+      where: { sellerId: transaction.sellerId },
+    })
+
+    const totalRating = sellerReviews.reduce((sum, review) => sum + review.rating, 0)
+    const averageRating = parseFloat((totalRating / sellerReviews.length).toFixed(2))
+
+    // update seller average rating
     await prisma.user.update({
       where: { id: transaction.sellerId },
       data: {
         reputationScore: {
-          increment: rating / 5,
+          increment: averageRating,
         },
       },
     });
