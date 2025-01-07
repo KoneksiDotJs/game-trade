@@ -11,6 +11,7 @@ import listingRoutes from "./routes/listing.routes";
 import userRoutes from "./routes/user.routes";
 import transactionRoutes from "./routes/transaction.routes";
 import webhookRoutes from "./routes/webhook.routes";
+import reviewRoutes from "./routes/review.routes";
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use("/api/games", gameRoutes)
 app.use("/api/listings", listingRoutes)
 app.use("/api/users", userRoutes)
 app.use("/api/transactions", transactionRoutes)
+app.use("/api/reviews", reviewRoutes)
 
 app.use("/webhook", webhookRoutes);
 
