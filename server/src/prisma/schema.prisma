@@ -66,6 +66,7 @@ model Listing {
   description String        @db.Text
   price       Decimal       @db.Decimal(10, 2)
   currency    String        @default("USD")
+  quantity    Int          @default(1)  
   status      ListingStatus @default(ACTIVE)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -95,6 +96,7 @@ model ListingImage {
 model Transaction {
   id          Int        @id @default(autoincrement())
   amount      Decimal    @db.Decimal(10, 2)
+  quantity    Int          @default(1)
   status      TxStatus   @default(PENDING)
   stripePaymentIntentId String?  @unique
   paymentStatus       String?    @default("pending")
