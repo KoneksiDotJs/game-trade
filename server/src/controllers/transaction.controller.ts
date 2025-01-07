@@ -10,7 +10,7 @@ export const createTransaction: RequestHandler = async (
   res
 ): Promise<void> => {
   try {
-    const { listingId } = req.body;
+    const { listingId, quantity = 1 } = req.body;
     const buyerId = req.user?.id;
 
     const listing = await prisma.listing.findUnique({
@@ -22,20 +22,25 @@ export const createTransaction: RequestHandler = async (
       throw new Error("User not authenticated");
     }
 
+    if (!listing) {
+      throw new Error("Listing not found");
+    }
+
     switch (true) {
-      case !listing:
-        throw new Error("Listing not found");
-      case listing?.status !== "ACTIVE":
+      case listing.status !== "ACTIVE":
         throw new Error("Listing is not available");
-      case listing?.userId === buyerId:
+      case listing.userId === buyerId:
         throw new Error("Cannot buy your own listing");
+      case !listing.quantity || listing.quantity < 1:
+        throw new Error("Item out of stock");
       default:
         break;
     }
 
     const transaction = await prisma.transaction.create({
       data: {
-        amount: listing?.price,
+        amount: Number(listing?.price) * quantity,
+        quantity: parseInt(quantity),
         buyerId: buyerId,
         sellerId: listing?.userId,
         listingId: listingId,
@@ -65,14 +70,12 @@ export const createTransaction: RequestHandler = async (
       data: { status: "PENDING" },
     });
 
-    res
-      .status(201)
-      .json(
-        sendSuccess({
-          updatedTransaction,
-          clientSecret: paymentIntent.client_secret,
-        })
-      );
+    res.status(201).json(
+      sendSuccess({
+        updatedTransaction,
+        clientSecret: paymentIntent.client_secret,
+      })
+    );
   } catch (error) {
     res.status(500).json(sendError((error as Error).message));
   }
@@ -175,36 +178,58 @@ export const updateTransactionStatus: RequestHandler = async (
       res.status(403).json(sendError("Unauthorized"));
     }
 
-    // Cancel payment intent if transaction is cancelled
-    if (status === "CANCELLED" && transaction.stripePaymentIntentId) {
-      await stripeService.cancelPaymentIntent(
-        transaction.stripePaymentIntentId
-      );
-    }
+    // start transaction to ensure data consistency
+    const result = await prisma.$transaction(async (prisma) => {
+      // handle payment cancellation first
+      if (status === "CANCELLED" && transaction.stripePaymentIntentId) {
+        await stripeService.cancelPaymentIntent(
+          transaction.stripePaymentIntentId
+        );
+      }
 
-    // update transaction and listing status
-    const updatedTransaction = await prisma.transaction.update({
-      where: { id: parseInt(id) },
-      data: {
-        status,
-        completedAt: status === "COMPLETED" ? new Date() : null,
-        paymentStatus:
-          status === "CANCELLED"
-            ? "cancelled"
-            : status === "COMPLETED"
-            ? "paid"
-            : "pending",
-      },
+      // update transaction status
+      const updatedTransaction = await prisma.transaction.update({
+        where: { id: parseInt(id) },
+        data: {
+          status,
+          completedAt: status === "COMPLETED" ? new Date() : null,
+          paymentStatus:
+            status === "CANCELLED"
+              ? "cancelled"
+              : status === "COMPLETED"
+              ? "paid"
+              : "pending",
+        },
+      });
+
+      // handle listing updates based on status
+      if (status === "COMPLETED") {
+        if (transaction.listing.quantity < 1) {
+          throw new Error("Item out of stock");
+        }
+
+        await prisma.listing.update({
+          where: { id: transaction.listingId },
+          data: {
+            quantity: {
+              decrement: 1,
+            },
+            status: transaction.listing.quantity <= 1 ? "SOLD" : "ACTIVE",
+          },
+        });
+      } else if (status === "CANCELLED") {
+        await prisma.listing.update({
+          where: { id: transaction.listingId },
+          data: {
+            status: "ACTIVE",
+          },
+        });
+      }
+
+      return updatedTransaction;
     });
 
-    if (status === "COMPLETED" || status === "CANCELLED") {
-      await prisma.listing.update({
-        where: { id: transaction.listingId },
-        data: { status: status === "COMPLETED" ? "SOLD" : "ACTIVE" },
-      });
-    }
-
-    res.status(200).json(sendSuccess(updatedTransaction));
+    res.status(200).json(sendSuccess(result));
   } catch (error) {
     res.status(500).json(sendError((error as Error).message));
   }

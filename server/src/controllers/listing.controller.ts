@@ -26,6 +26,7 @@ export const createListing: RequestHandler = async (
       price,
       gameId,
       serviceTypeId,
+      quantity,
       currency = "USD",
     } = req.body;
     const files = req.files as Express.Multer.File[];
@@ -36,6 +37,7 @@ export const createListing: RequestHandler = async (
         description,
         price: parseFloat(price),
         currency,
+        quantity: parseInt(quantity) || 1,
         gameId: parseInt(gameId),
         serviceTypeId: parseInt(serviceTypeId),
         userId,
@@ -174,7 +176,7 @@ export const updateListing: RequestHandler = async (
   try {
     const { id } = req.params;
     const userId = req.user?.id;
-    const { title, description, price, status } = req.body;
+    const { title, description, price, status, quantity } = req.body;
     const files = req.files as Express.Multer.File[];
 
     const listing = await prisma.listing.findUnique({
@@ -226,6 +228,7 @@ export const updateListing: RequestHandler = async (
         description,
         price: price ? parseFloat(price) : undefined,
         status: status as ListingStatus,
+        quantity: quantity ? parseInt(quantity) : undefined,
       },
       include: {
         game: true,
