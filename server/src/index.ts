@@ -13,23 +13,42 @@ import transactionRoutes from "./routes/transaction.routes";
 import webhookRoutes from "./routes/webhook.routes";
 import reviewRoutes from "./routes/review.routes";
 import messageRoutes from "./routes/message.routes";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import { errorHandler } from "./middleware/errorHandler";
+import { serve, setup } from "./config/swagger";
 
 const app = express();
 
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Security middleware
+app.use(helmet());
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP
+});
+app.use(limiter);
+
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
-app.use("/api/service-type", serviceTypeRoutes)
-app.use("/api/games", gameRoutes)
-app.use("/api/listings", listingRoutes)
-app.use("/api/users", userRoutes)
-app.use("/api/transactions", transactionRoutes)
-app.use("/api/reviews", reviewRoutes)
-app.use("/api/messages", messageRoutes)
+app.use("/api/service-type", serviceTypeRoutes);
+app.use("/api/games", gameRoutes);
+app.use("/api/listings", listingRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/transactions", transactionRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/messages", messageRoutes);
 
 app.use("/webhook", webhookRoutes);
+
+app.use("/api-docs", serve, setup);
+
+// Error handling
+app.use(errorHandler);
 
 const startServer = async () => {
   try {
