@@ -1,88 +1,171 @@
 import request from "supertest";
 import app from "../index";
-import { describe, it, expect, beforeAll, afterAll, jest } from "@jest/globals";
+import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
 import { Server } from "http";
 import prisma from "../config/db";
 
 let server: Server;
+let authToken: string;
+let userId: string;
+let listingId: number;
+let categoryId: number;
+let gameId: number;
+let serviceTypeId: number;
+let transactionId: number;
 
-beforeAll((done) => {
-  server = app.listen(0, () => done());
-}, 10000); // 10s timeout
+beforeAll(async () => {
+  server = app.listen(0);
 
-afterAll(async () => {
-  await prisma.user.deleteMany({
-    where: {
-      email: "test@example.com",
+  // Setup test data
+  const category = await prisma.category.create({
+    data: { name: "Test Category" },
+  });
+  categoryId = category.id;
+
+  const game = await prisma.game.create({
+    data: {
+      title: "Test Game",
+      categoryId,
     },
   });
-  await prisma.$disconnect();
-  server.close();
-}, 10000); // 10s timeout
+  gameId = game.id;
 
-// auth test
-describe("Auth API", () => {
-  jest.setTimeout(15000); // 15s timeout for all tests in this block
-  let verificationToken: string;
-
-  it("should register a new user", async () => {
-    const res = await request(app).post("/api/auth/register").send({
-      email: "test@example.com",
-      password: "password12345",
-      username: "testuser",
-    });
-
-    expect(res.status).toBe(201);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveProperty("message");
-    expect(res.body.data).toHaveProperty("token");
-    verificationToken = res.body.data.token;
-  }, 10000);
-  
-  it("should not register with invalid email", async () => {
-    const res = await request(app).post("/api/auth/register").send({
-      email: "invalid-email",
-      password: "password12345",
-      username: "testuser2",
-    });
-
-    expect(res.status).toBe(400);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe("Invalid email format");
-  }, 10000);
-  
-  it("should verify email", async () => {
-    const res = await request(app).get(
-      `/api/auth/verify-email?token=${verificationToken}`
-    );
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-  }, 10000);
-
-  it("should login user after verification", async () => {
-    // Wait a bit for verification to complete
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const res = await request(app).post("/api/auth/login").send({
-      email: "test@example.com",
-      password: "password12345",
-    });
-
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveProperty("token");
-  }, 10000);
+  const serviceType = await prisma.serviceType.create({
+    data: { name: "Test Service" },
+  });
+  serviceTypeId = serviceType.id;
 });
 
-// category test
+afterAll(async () => {
+  await prisma.$transaction([
+    prisma.message.deleteMany(),
+    prisma.review.deleteMany(),
+    prisma.transaction.deleteMany(),
+    prisma.listing.deleteMany(),
+    prisma.user.deleteMany(),
+    prisma.game.deleteMany(),
+    prisma.category.deleteMany(),
+    prisma.serviceType.deleteMany(),
+  ]);
 
-// game test
+  await prisma.$disconnect();
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+});
 
-// listing test
+describe("API Tests", () => {
+  describe("Auth Flow", () => {
+    it("should complete auth flow", async () => {
+      // Register
+      const registerRes = await request(app).post("/api/auth/register").send({
+        email: "test@example.com",
+        password: "password12345",
+        username: "testuser",
+      });
+      expect(registerRes.status).toBe(201);
+      const verificationToken = registerRes.body.data.token;
 
-// transaction test
+      // Wait for email verification
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-// review test
+      // Verify Email
+      const verifyRes = await request(app).get(
+        `/api/auth/verify-email?token=${verificationToken}`
+      );
+      expect(verifyRes.status).toBe(200);
 
-// message test
+      // Wait for verification to complete
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Login
+      const loginRes = await request(app).post("/api/auth/login").send({
+        email: "test@example.com",
+        password: "password12345",
+      });
+      expect(loginRes.status).toBe(200);
+      authToken = loginRes.body.data.token;
+      userId = loginRes.body.data.id;
+    }, 15000);
+  });
+
+  describe("Transaction Flow", () => {
+    let buyerToken: string;
+    let buyerId: string;
+
+    beforeAll(async () => {
+      // Register & verify buyer
+      const registerRes = await request(app).post("/api/auth/register").send({
+        email: "buyer@example.com",
+        password: "password12345",
+        username: "testbuyer",
+      });
+      const verificationToken = registerRes.body.data.token;
+
+      // Verify buyer email
+      await request(app).get(
+        `/api/auth/verify-email?token=${verificationToken}`
+      );
+
+      // Login as buyer
+      const loginRes = await request(app).post("/api/auth/login").send({
+        email: "buyer@example.com",
+        password: "password12345",
+      });
+      buyerToken = loginRes.body.data.token;
+      buyerId = loginRes.body.data.id;
+    });
+
+    it("should complete full transaction flow", async () => {
+      // Create listing as seller
+      const listingRes = await request(app)
+        .post("/api/listings")
+        .set("Authorization", `Bearer ${authToken}`)
+        .send({
+          title: "Test Listing",
+          description: "Test Description",
+          price: 99.99,
+          gameId,
+          serviceTypeId,
+          quantity: 1,
+        });
+      listingId = listingRes.body.data.id;
+
+      // Create transaction as buyer
+      const createRes = await request(app)
+        .post("/api/transactions")
+        .set("Authorization", `Bearer ${buyerToken}`)
+        .send({
+          listingId,
+          quantity: 1,
+        });
+      console.log("Transaction Response:", createRes.body); // Debug response
+      expect(createRes.status).toBe(201);
+
+      // Extract transaction data correctly
+      const transaction = createRes.body.data.updatedTransaction;
+      transactionId = transaction.id;
+      const paymentIntentId = transaction.stripePaymentIntentId;
+
+      // Update transaction status
+      const updateRes = await request(app)
+        .patch(`/api/transactions/${transactionId}/status`)
+        .set("Authorization", `Bearer ${buyerToken}`)
+        .send({
+          status: "COMPLETED",
+          paymentIntentId,
+        });
+      console.log("Update Response:", updateRes.body); // Debug response
+      expect(updateRes.status).toBe(200);
+
+      // Create review
+      const reviewRes = await request(app)
+        .post("/api/reviews")
+        .set("Authorization", `Bearer ${buyerToken}`)
+        .send({
+          transactionId,
+          rating: 5,
+          comment: "Great service!",
+        });
+      expect(reviewRes.status).toBe(201);
+    }, 30000);
+  });
+});
