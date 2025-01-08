@@ -8,7 +8,12 @@
     "start": "ts-node src/index.ts",
     "test": "jest --detectOpenHandles",
     "test:watch": "jest --watch",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint . --ext .ts",
+    "seed": "ts-node src/seed/seed.ts",
+    "db:seed": "prisma db seed"
+  },
+  "prisma": {
+    "seed": "ts-node src/seed/seed.ts"
   },
   "keywords": [],
   "author": "",
