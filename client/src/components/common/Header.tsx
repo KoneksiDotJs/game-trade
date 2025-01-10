@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { LoginDialog } from "../auth/LoginDialog";
 import api from "@/lib/api/client";
+import { RegisterDialog } from "../auth/RegisterDialog";
 
 export function Header() {
   const { token, logout } = useAuthStore();
@@ -16,6 +17,32 @@ export function Header() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const { setAuth } = useAuthStore();
   const router = useRouter();
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const handleSwitchToLogin = () => {
+    setIsRegisterOpen(false);
+    setIsLoginOpen(true);
+  };
+  const handleSwitchToRegister = () => {
+    setIsLoginOpen(false);
+    setIsRegisterOpen(true);
+  };
+
+  const handleRegister = async (values: {
+    username: string;
+    email: string;
+    password: string;
+  }) => {
+    try {
+      await api.post("/auth/register", values);
+      toast.success(
+        "Registration successful! Please check your email for verification."
+      );
+      setIsRegisterOpen(false);
+    } catch (error) {
+      console.error("Registration failed:", error);
+      toast.error("Registration failed. Please try again.");
+    }
+  };
 
   const handleLogin = async (credentials: {
     email: string;
@@ -25,9 +52,9 @@ export function Header() {
       const response = await api.post("/auth/login", credentials);
       const { data } = response.data;
       // console.log("Login response:", response.data);
-      
+
       if (data.token) {
-        setAuth(data.token)
+        setAuth(data.token);
         toast.success("Login successful!");
         setIsLoginOpen(false);
         router.push("/");
@@ -68,7 +95,7 @@ export function Header() {
               <FaMoon className="w-5 h-5 text-gray-600" />
             )}
           </button>
-          { token ? (
+          {token ? (
             <>
               <Link href="/listings/create" className="btn btn-primary">
                 Create Listing
@@ -108,10 +135,21 @@ export function Header() {
                 isOpen={isLoginOpen}
                 onClose={() => setIsLoginOpen(false)}
                 onSubmit={handleLogin}
+                onSwitchToRegister={handleSwitchToRegister}
               />
-              <Link href="/register" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg transition-colors">
+              <button
+                onClick={() => setIsRegisterOpen(true)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg transition-colors"
+              >
                 Register
-              </Link>
+              </button>
+
+              <RegisterDialog
+                isOpen={isRegisterOpen}
+                onClose={() => setIsRegisterOpen(false)}
+                onSubmit={handleRegister}
+                onSwitchToLogin={handleSwitchToLogin}
+              />
             </>
           )}
         </div>

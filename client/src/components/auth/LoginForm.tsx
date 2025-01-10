@@ -1,12 +1,15 @@
 "use client";
 import { ErrorMessage, Field, Form, Formik } from "formik";
-import Link from "next/link";
 import { useState } from "react";
+import toast from "react-hot-toast";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import * as Yup from "yup";
+import { ForgotPasswordDialog } from "./ForgotPasswordDialog";
+import api from "@/lib/api/client";
 
 interface LoginFormProps {
   onSubmit: (credentials: { email: string; password: string }) => Promise<void>;
+  onSwitchToRegister: () => void;
 }
 
 interface LoginFormValues {
@@ -19,8 +22,24 @@ const validationSchema = Yup.object({
   password: Yup.string().required("Required"),
 });
 
-export function LoginForm({ onSubmit }: LoginFormProps) {
+export function LoginForm({ onSubmit, onSwitchToRegister }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleForgotPassword = async (values: { email: string }) => {
+    setIsResetting(true);
+    try {
+      await api.post('/auth/forgot-password', values);
+      toast.success('Password reset link has been sent to your email');
+      setIsForgotPasswordOpen(false);
+    } catch (error) {
+      console.error('Failed to send reset link:', error);
+      toast.error('Failed to send reset link. Please try again.');
+    } finally {
+      setIsResetting(false)
+    }
+  };
   return (
     <div className="w-full max-w-md p-8 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
       <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
@@ -85,7 +104,21 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
                 className="mt-1 text-sm text-red-600 dark:text-red-400"
               />
             </div>
-
+            <div className="flex justify-end mb-4">
+        <button
+          type="button"
+          onClick={() => setIsForgotPasswordOpen(true)}
+          className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
+        >
+          Forgot password?
+        </button>
+      </div>
+      <ForgotPasswordDialog
+        isOpen={isForgotPasswordOpen}
+        onClose={() => setIsForgotPasswordOpen(false)}
+        onSubmit={handleForgotPassword}
+        isLoading={isResetting}
+      />
             <button
               type="submit"
               disabled={isSubmitting}
@@ -93,15 +126,15 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
             >
               {isSubmitting ? "Logging in..." : "Login"}
             </button>
-
             <p className="text-center text-sm text-gray-600 dark:text-gray-400">
               Don&apos;t have an account?{" "}
-              <Link
-                href="/register"
+              <button
+                type="button"
+                onClick={onSwitchToRegister}
                 className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium"
               >
                 Register here
-              </Link>
+              </button>
             </p>
           </Form>
         )}
