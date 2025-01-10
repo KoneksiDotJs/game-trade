@@ -5,7 +5,15 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get("token");
 
   if (!token && isProtectedRoute(request.nextUrl.pathname)) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return new NextResponse(
+      JSON.stringify({ success: false, message: "Unauthorized" }),
+      {
+        status: 401,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
   }
 
   return NextResponse.next();

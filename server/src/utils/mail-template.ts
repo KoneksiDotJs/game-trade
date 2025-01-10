@@ -11,7 +11,7 @@ export const getVerificationEmailTemplate = (token: string) => {
 };
 
 export const getResetPasswordTemplate = (token: string) => {
-  const verificationLink = `${config.clientUrl}/verify-email?token=${token}`;
+  const verificationLink = `${config.clientUrl}/reset-password?token=${token}`;
 
   return `
       <h1>Verify Your Email</h1>
