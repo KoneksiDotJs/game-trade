@@ -4,11 +4,39 @@ import { useAuthStore } from "@/lib/store/auth";
 import { FaUser, FaSignOutAlt, FaMoon, FaSun } from "react-icons/fa";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import { LoginDialog } from "../auth/LoginDialog";
+import api from "@/lib/api/client";
 
 export function Header() {
-  const { user, logout } = useAuthStore();
+  const { token, logout } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const { setAuth } = useAuthStore();
+  const router = useRouter();
+
+  const handleLogin = async (credentials: {
+    email: string;
+    password: string;
+  }) => {
+    try {
+      const response = await api.post("/auth/login", credentials);
+      const { data } = response.data;
+      // console.log("Login response:", response.data);
+      
+      if (data.token) {
+        setAuth(data.token)
+        toast.success("Login successful!");
+        setIsLoginOpen(false);
+        router.push("/");
+      }
+    } catch (error) {
+      console.error("Login failed:", error);
+      toast.error("Login failed. Please try again.");
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -40,7 +68,7 @@ export function Header() {
               <FaMoon className="w-5 h-5 text-gray-600" />
             )}
           </button>
-          {user ? (
+          { token ? (
             <>
               <Link href="/listings/create" className="btn btn-primary">
                 Create Listing
@@ -69,10 +97,19 @@ export function Header() {
             </>
           ) : (
             <>
-              <Link href="/login" className="btn btn-ghost dark:text-white text-gray-900">
+              <button
+                onClick={() => setIsLoginOpen(true)}
+                className="px-4 py-2 text-indigo-600 dark:text-indigo-400 border border-indigo-600 dark:border-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+              >
                 Login
-              </Link>
-              <Link href="/register" className="btn btn-primary">
+              </button>
+
+              <LoginDialog
+                isOpen={isLoginOpen}
+                onClose={() => setIsLoginOpen(false)}
+                onSubmit={handleLogin}
+              />
+              <Link href="/register" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg transition-colors">
                 Register
               </Link>
             </>

@@ -1,29 +1,25 @@
-import {create} from 'zustand'
-import {persist} from 'zustand/middleware'
-
-interface User {
-    id: string;
-    email: string;
-    name: string;
-}
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 interface AuthState {
-    token: string | null;
-    user: User | null;
-    setAuth: (token: string, user: User) => void;
-    logout: () => void;
+  token: string | null;
+  setAuth: (token: string) => void;
+  logout: () => void;
 }
 
-export const useAuthStore = create(
-    persist<AuthState>(
-        (set) => ({
-            token: null,
-            user: null,
-            setAuth: (token, user) => set({token, user}),
-            logout: () => set({token: null, user: null})
-        }),
-        {
-            name: 'auth-storage'
-        }
-    )
-)
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      token: null,
+      setAuth: (token) => {
+        //   console.log('Setting auth:', { token });
+        set({ token });
+      },
+      logout: () => set({ token: null }),
+    }),
+    {
+      name: "auth-storage",
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
