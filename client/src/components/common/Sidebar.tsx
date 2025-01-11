@@ -9,7 +9,7 @@ export function Sidebar() {
   const menuItems = [
     { href: "/games", label: "Games", icon: FaGamepad },
     { href: "/listings", label: "Listings", icon: FaShoppingCart },
-    { href: "/profile", label: "Profile", icon: FaUser },
+    { href: "/users/profile", label: "Profile", icon: FaUser },
     { href: "/messages", label: "Messages", icon: FaEnvelope },
   ];
 
