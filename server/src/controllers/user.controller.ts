@@ -2,6 +2,7 @@ import { RequestHandler } from "express";
 import { sendError, sendSuccess } from "../utils/response";
 import prisma from "../config/db";
 import cloudinary from "../config/cloudinary";
+import bcrypt from "bcryptjs";
 
 export const getProfile: RequestHandler = async (req, res): Promise<void> => {
   try {
@@ -76,27 +77,27 @@ export const updateProfile: RequestHandler = async (
   }
 };
 
-export const getUserListings: RequestHandler = async (req, res): Promise<void> => {
-    try {
-        const {userId} = req.params;
-
-        const listings = await prisma.listing.findMany({
-            where: {userId},
-            include: {
-                game: true,
-                serviceType: true,
-                images: true,
-            }
-        })
-    } catch (error) {
-        res.status(500).json(sendError((error as Error).message));
-    }
-}
-
-export const getUserStats: RequestHandler = async (
+export const getUserListings: RequestHandler = async (
   req,
   res
 ): Promise<void> => {
+  try {
+    const { userId } = req.params;
+
+    const listings = await prisma.listing.findMany({
+      where: { userId },
+      include: {
+        game: true,
+        serviceType: true,
+        images: true,
+      },
+    });
+  } catch (error) {
+    res.status(500).json(sendError((error as Error).message));
+  }
+};
+
+export const getUserStats: RequestHandler = async (req, res): Promise<void> => {
   try {
     const userId = req.user?.id;
 
@@ -134,22 +135,64 @@ export const getUserStats: RequestHandler = async (
 };
 
 export const getAllUsers: RequestHandler = async (req, res): Promise<void> => {
-    try {
-        const users = await prisma.user.findMany({
-            select: {
-                id: true,
-                username: true,
-                email: true,
-                avatarUrl: true,
-                isVerified: true,
-                role: true,
-                reputationScore: true,
-                createdAt: true,
-            }
-        })
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        avatarUrl: true,
+        isVerified: true,
+        role: true,
+        reputationScore: true,
+        createdAt: true,
+      },
+    });
 
-        res.status(200).json(sendSuccess(users));
-    } catch (error) {
-        res.status(500).json(sendError((error as Error).message));
+    res.status(200).json(sendSuccess(users));
+  } catch (error) {
+    res.status(500).json(sendError((error as Error).message));
+  }
+};
+
+export const changePassword: RequestHandler = async (
+  req,
+  res
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) throw new Error("User not found");
+
+    // validate current password
+    const isPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password
+    );
+    if (!isPasswordValid) {
+      res.status(400).json(sendError("Invalid current password"));
+      return;
     }
-}
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // update password
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+      },
+    });
+
+    res
+      .status(200)
+      .json(sendSuccess({ message: "Password changed successfully" }));
+  } catch (error) {
+    res.status(500).json(sendError((error as Error).message));
+  }
+};

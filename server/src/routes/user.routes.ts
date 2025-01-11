@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../middleware/authenticate";
-import { getAllUsers, getProfile, getUserListings, getUserStats, updateProfile } from "../controllers/user.controller";
+import { changePassword, getAllUsers, getProfile, getUserListings, getUserStats, updateProfile } from "../controllers/user.controller";
 import { upload } from "../middleware/multer";
 import { hasRole } from "../middleware/role";
 import { Role } from "@prisma/client";
@@ -11,6 +11,7 @@ const router = Router();
 // profile routes
 router.get('/profile', authenticate, getProfile)
 router.put('/profile', authenticate, upload.single('avatar'), updateProfile)
+router.put('/change-password', authenticate, changePassword)
 
 // user stats and listings
 router.get('/stats', authenticate, getUserStats)
