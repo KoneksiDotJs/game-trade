@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useAuthStore } from "@/lib/store/auth";
-import { FaUser, FaSignOutAlt, FaMoon, FaSun } from "react-icons/fa";
+import { FaSignOutAlt, FaMoon, FaSun } from "react-icons/fa";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -9,14 +9,19 @@ import toast from "react-hot-toast";
 import { LoginDialog } from "../auth/LoginDialog";
 import api from "@/lib/api/client";
 import { RegisterDialog } from "../auth/RegisterDialog";
+import Image from "next/image";
 
 export function Header() {
   const { token, logout } = useAuthStore();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const { setAuth } = useAuthStore();
   const router = useRouter();
+  const [userProfile, setUserProfile] = useState<{ avatarUrl?: string } | null>(
+    null
+  );
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const handleSwitchToLogin = () => {
     setIsRegisterOpen(false);
@@ -67,7 +72,18 @@ export function Header() {
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    const fetchProfile = async () => {
+      if (token) {
+        try {
+          const response = await api.get("/users/profile");
+          setUserProfile(response.data.data);
+        } catch (error) {
+          console.error("Failed to fetch profile:", error);
+        }
+      }
+    };
+    fetchProfile();
+  }, [token]);
 
   if (!mounted) {
     return null;
@@ -100,26 +116,54 @@ export function Header() {
               <Link href="/listings/create" className="btn btn-primary">
                 Create Listing
               </Link>
-              <div className="dropdown dropdown-end">
-                <label tabIndex={0} className="btn btn-ghost btn-circle avatar">
-                  <FaUser />
-                </label>
-                <ul className="menu dropdown-content mt-3 p-2 shadow bg-base-100 rounded-box w-52">
-                  <li>
-                    <Link href="/profile">Profile</Link>
-                  </li>
-                  <li>
-                    <Link href="/transactions">Transactions</Link>
-                  </li>
-                  <li>
-                    <Link href="/messages">Messages</Link>
-                  </li>
-                  <li>
-                    <button onClick={logout} className="text-red-500">
-                      <FaSignOutAlt /> Logout
+              <div className="relative">
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="w-8 h-8 rounded-full overflow-hidden hover:ring-2 hover:ring-indigo-500 dark:hover:ring-indigo-400 transition-all"
+                >
+                  <Image
+                    src={userProfile?.avatarUrl || "/images/default-avatar.png"}
+                    alt="Profile"
+                    width={32}
+                    height={32}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg py-1 z-50">
+                    <Link
+                      href="/profile"
+                      className="block px-4 py-2 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Profile
+                    </Link>
+                    <Link
+                      href="/transactions"
+                      className="block px-4 py-2 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Transactions
+                    </Link>
+                    <Link
+                      href="/messages"
+                      className="block px-4 py-2 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      Messages
+                    </Link>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-red-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    >
+                      <FaSignOutAlt className="inline mr-2" /> Logout
                     </button>
-                  </li>
-                </ul>
+                  </div>
+                )}
               </div>
             </>
           ) : (
