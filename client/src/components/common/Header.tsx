@@ -56,10 +56,10 @@ export function Header() {
     try {
       const response = await api.post("/auth/login", credentials);
       const { data } = response.data;
-      // console.log("Login response:", response.data);
+      console.log("Login response:", response.data);
 
-      if (data.token) {
-        setAuth(data.token);
+      if (data) {
+        setAuth(data.token, data.user);
         toast.success("Login successful!");
         setIsLoginOpen(false);
         router.push("/");
