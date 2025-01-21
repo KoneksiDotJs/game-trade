@@ -130,7 +130,7 @@ export const login: RequestHandler<{}, any, LoginDTO> = async (
       { expiresIn: "7d" }
     );
 
-    res.json(sendSuccess({ token }));
+    res.json(sendSuccess({ token, user: {id: user.id, email: user.email, usernmae: user.username, role: user.role} }));
   } catch (error) {
     res.status(401).json(sendError((error as Error).message));
   }
