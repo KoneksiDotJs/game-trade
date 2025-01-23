@@ -1,13 +1,14 @@
 "use client";
 
+import { routes } from "@/constants/routes";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FaUsers, FaGamepad, FaList, FaTags } from "react-icons/fa";
 import { MdDashboard } from "react-icons/md";
 
 const menuItems = [
-  { href: "/admin", label: "Dashboard", icon: MdDashboard },
-  { href: "/admin/users", label: "Users", icon: FaUsers },
+  { href: routes.admin.dashboard, label: "Dashboard", icon: MdDashboard },
+  { href: routes.admin.users, label: "Users", icon: FaUsers },
   { href: "/admin/games", label: "Games", icon: FaGamepad },
   { href: "/admin/categories", label: "Categories", icon: FaTags },
   { href: "/admin/listings", label: "Listings", icon: FaList },
@@ -22,7 +23,7 @@ export function AdminSidebar() {
         <div className="flex flex-col h-0 flex-1 bg-gray-800">
           <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
             <div className="flex items-center flex-shrink-0 px-4">
-              <span className="text-xl font-bold text-white">Admin Panel</span>
+              <span className="text-xl font-bold text-white">Game Trade</span>
             </div>
             <nav className="mt-5 flex-1 px-2 space-y-1">
               {menuItems.map((item) => {

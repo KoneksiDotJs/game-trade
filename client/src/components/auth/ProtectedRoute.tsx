@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store/auth";
 import { useRouter } from "next/navigation";
+import { routes } from "@/constants/routes";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -23,19 +24,23 @@ export function ProtectedRoute({
       setIsInitialized(true);
       return;
     }
+    console.log("Auth Check:", { token, user, adminOnly }); // Debug log
 
     const checkAuth = () => {
       if (!token) {
-        router.push("/");
+        router.push(routes.admin.login);
+        return;
       } else if (adminOnly && user?.role !== "ADMIN") {
-        router.push("/403");
+        router.push(routes.admin.login);
+        return;
       }
     };
 
     checkAuth();
   }, [token, user, adminOnly, router, isInitialized]);
 
-  if (!isInitialized || !token || (adminOnly && user?.role !== "ADMIN")) {
+  // Show loading only during initialization
+  if (!isInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
@@ -43,5 +48,10 @@ export function ProtectedRoute({
     );
   }
 
-  return <>{children}</>;
+  // Once initialized, only show children if authenticated
+  if (token && (!adminOnly || user?.role === "ADMIN")) {
+    return <>{children}</>;
+  }
+
+  return null;
 }

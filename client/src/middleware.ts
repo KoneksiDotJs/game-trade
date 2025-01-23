@@ -1,29 +1,53 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { routes } from "./constants/routes";
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get("token");
+  const { pathname } = request.nextUrl;
+  const hostname = request.headers.get("host");
 
-  if (!token && isProtectedRoute(request.nextUrl.pathname)) {
-    return new NextResponse(
-      JSON.stringify({ success: false, message: "Unauthorized" }),
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+  // Admin routes
+  if (hostname?.startsWith("admin.")) {
+    // Map root admin paths to admin directory
+    const url = request.nextUrl.clone();
+    const token = request.cookies.get("token");
+
+    // Keep login path as is
+    if (pathname === "/login") {
+      url.pathname = routes.admin.login;
+      return NextResponse.rewrite(url);
+    }
+
+    // Check authentication for admin routes
+    if (!token) {
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
+
+    // Skip auth check for static assets and API routes
+    if (pathname.startsWith("/_next") || pathname.startsWith("/api")) {
+      return NextResponse.next();
+    }
+
+    // Rewrite all admin routes to use admin directory
+    url.pathname = `/admin${pathname}`;
+    return NextResponse.rewrite(url);
+  }
+
+  // Redirect admin URLs from main domain to admin subdomain
+  if (pathname.startsWith("/admin")) {
+    const url = request.nextUrl.clone();
+    url.host = `admin.${hostname}`;
+    url.pathname = pathname.replace("/admin", "");
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();
 }
 
-function isProtectedRoute(pathname: string): boolean {
-  const protectedRoutes = ["/profile", "/listings/create", "/messages"];
-  return protectedRoutes.some((route) => pathname.startsWith(route));
-}
-
 export const config = {
-  matcher: ["/profile/:path*", "/listings/create", "/messages/:path*"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+    "/admin/:path*",
+  ],
 };

@@ -1,7 +1,6 @@
 import "@/styles/globals.css";
 import { Providers } from "./providers";
 import ErrorBoundary from "@/components/error/ErrorBoundary";
-import { ClientLayout } from "@/components/layout/ClientLayout";
 import { Toaster } from "react-hot-toast";
 
 export const metadata = {
@@ -18,9 +17,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <Providers>
-          <ErrorBoundary>
-            <ClientLayout>{children}</ClientLayout>
-          </ErrorBoundary>
+          <ErrorBoundary>{children}</ErrorBoundary>
           <Toaster position="top-right" />
         </Providers>
       </body>

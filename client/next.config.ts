@@ -10,6 +10,20 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "admin.localhost:3000",
+          },
+        ],
+        destination: "/admin/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
