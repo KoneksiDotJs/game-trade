@@ -20,7 +20,7 @@ import { serve, setup } from "./config/swagger";
 
 const app = express();
 
-app.use(cors(corsOptions));
+app.use(corsOptions);
 app.use(express.json());
 
 // Security middleware

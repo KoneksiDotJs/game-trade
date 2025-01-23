@@ -30,7 +30,7 @@ api.interceptors.response.use(
       useAuthStore.getState().logout();
       window.location.href = "/";
     }
-    return Promise.reject(error);
+    return Promise.reject(error?.response?.data || error.message || 'An error occurred');
   }
 );
 

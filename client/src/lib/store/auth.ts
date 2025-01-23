@@ -23,9 +23,15 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       setAuth: (token: string, user: User): void => {
         //   console.log('Setting auth:', { token });
+        localStorage.setItem('token', token);
+        document.cookie = `token=${token}; path=/`;
         set({ token, user });
       },
-      logout: (): void => set({ token: null, user: null }),
+      logout: (): void => {
+        localStorage.removeItem('token');
+        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        set({ token: null, user: null });
+      }
     }),
     {
       name: "auth-storage",

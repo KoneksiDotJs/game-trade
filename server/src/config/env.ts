@@ -7,6 +7,7 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET!,
   nodeEnv: process.env.NODE_ENV || 'development',
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3000',
+  adminUrl: process.env.ADMIN_URL,
   dbUrl: process.env.DATABASE_URL!,
   emailUser: process.env.EMAIL_USER!,
   emailPassword: process.env.EMAIL_PASSWORD!,
