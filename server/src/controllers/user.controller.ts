@@ -3,7 +3,7 @@ import { sendError, sendSuccess } from "../utils/response";
 import prisma from "../config/db";
 import cloudinary from "../config/cloudinary";
 import bcrypt from "bcryptjs";
-import { Prisma, UserStatus } from "@prisma/client";
+import { ListingStatus, Prisma, Role, UserStatus } from "@prisma/client";
 
 export const getProfile: RequestHandler = async (req, res): Promise<void> => {
   try {
@@ -302,11 +302,10 @@ export const updateUserStatus: RequestHandler = async (
       return;
     }
 
-    const userStatus = status as UserStatus;
-
     // Check if user exists
     const targetUser = await prisma.user.findUnique({
       where: { id },
+      select: { role: true },
     });
 
     if (!targetUser) {
@@ -314,50 +313,60 @@ export const updateUserStatus: RequestHandler = async (
       return;
     }
 
-    // Don't allow banning other admins
-    if (targetUser.role === "ADMIN") {
+    if (targetUser.role === Role.ADMIN) {
       res.status(403).json(sendError("Cannot modify admin status"));
       return;
     }
 
-    // Update user status
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: {
-        status: userStatus,
-        banReason: reason || null,
-        bannedAt: new Date() || null,
-        bannedById: adminId,
-      },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        status: true,
-        banReason: true,
-        bannedAt: true,
-        bannedBy: {
-          select: {
-            username: true,
+    const result = await prisma.$transaction([
+      // Update user status
+      prisma.user.update({
+        where: { id },
+        data: {
+          status: status as UserStatus,
+          banReason: status === UserStatus.BANNED ? reason : null,
+          bannedAt: status === UserStatus.BANNED ? new Date() : null,
+          bannedById: status === UserStatus.BANNED ? adminId : null,
+        },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          status: true,
+          banReason: true,
+          bannedAt: true,
+          bannedBy: {
+            select: {
+              username: true,
+            },
           },
         },
-      },
-    });
+      }),
+      // Update listings based on user status
+      status === UserStatus.ACTIVE
+        ? prisma.listing.updateMany({
+            where: {
+              userId: id,
+              status: ListingStatus.INACTIVE,
+            },
+            data: {
+              status: ListingStatus.ACTIVE,
+            },
+          })
+        : status === UserStatus.BANNED
+        ? prisma.listing.updateMany({
+            where: {
+              userId: id,
+              status: ListingStatus.ACTIVE,
+            },
+            data: {
+              status: ListingStatus.INACTIVE,
+            },
+          })
+        : prisma.listing.updateMany({ where: { id: -1 }, data: {} }), // No-op for other statuses
+    ]);
 
-    // Deactivate user's listings if banned/suspended
-    if (userStatus !== UserStatus.ACTIVE) {
-      await prisma.listing.updateMany({
-        where: {
-          userId: id,
-          status: "ACTIVE",
-        },
-        data: {
-          status: "INACTIVE",
-        },
-      });
-    }
-
-    res.status(200).json(sendSuccess(updatedUser));
+    res.status(200).json(sendSuccess(result[0]));
   } catch (error) {
     // console.error("Error updating user status:", error);
     res.status(500).json(sendError((error as Error).message));
