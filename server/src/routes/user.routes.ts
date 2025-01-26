@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../middleware/authenticate";
-import { changePassword, getAllUsers, getProfile, getUserListings, getUserStats, updateProfile } from "../controllers/user.controller";
+import { changePassword, getAllUsers, getProfile, getUserById, getUserListings, getUserStats, updateProfile, updateUserStatus } from "../controllers/user.controller";
 import { upload } from "../middleware/multer";
 import { hasRole } from "../middleware/role";
 import { Role } from "@prisma/client";
@@ -18,7 +18,9 @@ router.get('/stats', authenticate, getUserStats)
 router.get('/:userId/listings', getUserListings)
 
 //admin routes
+router.get('/:id', authenticate, hasRole([Role.ADMIN]), getUserById)
 router.get('/', authenticate, hasRole([Role.ADMIN]), getAllUsers)
-router.put('/listings/:id/status', authenticate, hasRole([Role.MODERATOR]), updateListingStatus)
+router.put('/listings/:id/status', authenticate, hasRole([Role.MODERATOR, Role.ADMIN]), updateListingStatus)
+router.put('/:id', authenticate, hasRole([Role.ADMIN]), updateUserStatus)
 
 export default router;

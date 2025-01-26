@@ -8,31 +8,43 @@ datasource db {
 }
 
 model User {
-  id              String           @id @default(uuid()) @db.VarChar(36)
-  email           String        @unique
-  username        String        @unique
+  id              String     @id @default(uuid()) @db.VarChar(36)
+  email           String     @unique
+  username        String     @unique
   password        String
-  role            Role          @default(USER)
-  reputationScore Float         @default(0)
-  avatarUrl       String?       // Cloudinary secure URL
-  avatarId        String?       // Cloudinary public_id
-  isVerified      Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
+  role            Role       @default(USER)
+  reputationScore Float      @default(0)
+  status          UserStatus @default(ACTIVE)
+  avatarUrl       String? // Cloudinary secure URL
+  avatarId        String? // Cloudinary public_id
+  isVerified      Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
   // Relations
-  listings        Listing[]
-  sellerReviews   Review[]      @relation("SellerReview")
-  buyerReviews    Review[]      @relation("BuyerReview")
-  sentMessages    Message[]     @relation("SentMessages")
-  receivedMessages Message[]    @relation("ReceivedMessages")
-  buyTransactions Transaction[] @relation("BuyerTransactions")
+  listings         Listing[]
+  sellerReviews    Review[]      @relation("SellerReview")
+  buyerReviews     Review[]      @relation("BuyerReview")
+  sentMessages     Message[]     @relation("SentMessages")
+  receivedMessages Message[]     @relation("ReceivedMessages")
+  buyTransactions  Transaction[] @relation("BuyerTransactions")
   sellTransactions Transaction[] @relation("SellerTransactions")
+
+  // Admin management
+  bannedBy    User?     @relation("BannedUsers", fields: [bannedById], references: [id])
+  bannedById  String?   @db.VarChar(36)
+  bannedUsers User[]    @relation("BannedUsers")
+  banReason   String?
+  bannedAt    DateTime?
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
 }
 
 model Category {
-  id          Int       @id @default(autoincrement())
-  name        String    @unique
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
   description String?
   games       Game[]
 }
@@ -50,14 +62,14 @@ model Game {
   description String?   @db.Text
   categoryId  Int
   releaseDate DateTime?
-  imageUrl    String?   // Store image URL
-  imageId     String?   // Store public_id for Cloudinary
+  imageUrl    String? // Store image URL
+  imageId     String? // Store public_id for Cloudinary
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-  
+
   // Relations
-  category    Category  @relation(fields: [categoryId], references: [id])
-  listings    Listing[]
+  category Category  @relation(fields: [categoryId], references: [id])
+  listings Listing[]
 }
 
 model Listing {
@@ -66,95 +78,95 @@ model Listing {
   description String        @db.Text
   price       Decimal       @db.Decimal(10, 2)
   currency    String        @default("USD")
-  quantity    Int          @default(1)  
+  quantity    Int           @default(1)
   status      ListingStatus @default(ACTIVE)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
-  
+
   // Relations
-  userId      String
-  gameId      Int
-  serviceTypeId Int
-  serviceType   ServiceType   @relation(fields: [serviceTypeId], references: [id])
-  user        User          @relation(fields: [userId], references: [id])
-  game        Game          @relation(fields: [gameId], references: [id])
-  transactions Transaction[]
-  images      ListingImage[] // New relation
+  userId         String
+  gameId         Int
+  serviceTypeId  Int
+  serviceType    ServiceType     @relation(fields: [serviceTypeId], references: [id])
+  user           User            @relation(fields: [userId], references: [id])
+  game           Game            @relation(fields: [gameId], references: [id])
+  transactions   Transaction[]
+  images         ListingImage[] // New relation
   moderationLogs moderationLog[]
 }
 
 model ListingImage {
   id        Int      @id @default(autoincrement())
   imageUrl  String
-  imageId   String   // Cloudinary public_id
+  imageId   String // Cloudinary public_id
   listingId Int
   createdAt DateTime @default(now())
-  
-  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 }
 
 model Transaction {
-  id          Int        @id @default(autoincrement())
-  amount      Decimal    @db.Decimal(10, 2)
-  quantity    Int          @default(1)
-  status      TxStatus   @default(PENDING)
-  stripePaymentIntentId String?  @unique
-  paymentStatus       String?    @default("pending")
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  completedAt DateTime?
-  
+  id                    Int       @id @default(autoincrement())
+  amount                Decimal   @db.Decimal(10, 2)
+  quantity              Int       @default(1)
+  status                TxStatus  @default(PENDING)
+  stripePaymentIntentId String?   @unique
+  paymentStatus         String?   @default("pending")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  completedAt           DateTime?
+
   // Relations
-  listingId   Int
-  buyerId     String
-  sellerId    String
-  listing     Listing    @relation(fields: [listingId], references: [id])
-  buyer       User       @relation("BuyerTransactions", fields: [buyerId], references: [id])
-  seller      User       @relation("SellerTransactions", fields: [sellerId], references: [id])
-  reviews     Review[]
-  messages    Message[]
+  listingId Int
+  buyerId   String
+  sellerId  String
+  listing   Listing   @relation(fields: [listingId], references: [id])
+  buyer     User      @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller    User      @relation("SellerTransactions", fields: [sellerId], references: [id])
+  reviews   Review[]
+  messages  Message[]
 }
 
 model Review {
-  id            Int       @id @default(autoincrement())
-  rating        Int       @db.TinyInt
-  comment       String?   @db.Text
-  createdAt     DateTime  @default(now())
-  
+  id        Int      @id @default(autoincrement())
+  rating    Int      @db.TinyInt
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+
   // Relations
   transactionId Int
-  sellerId     String
-  buyerId      String
-  transaction  Transaction @relation(fields: [transactionId], references: [id])
-  seller      User        @relation("SellerReview", fields: [sellerId], references: [id])
-  buyer       User        @relation("BuyerReview", fields: [buyerId], references: [id])
+  sellerId      String
+  buyerId       String
+  transaction   Transaction @relation(fields: [transactionId], references: [id])
+  seller        User        @relation("SellerReview", fields: [sellerId], references: [id])
+  buyer         User        @relation("BuyerReview", fields: [buyerId], references: [id])
 }
 
 model Message {
-  id            Int       @id @default(autoincrement())
-  content       String    @db.Text
-  isRead        Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  
+  id        Int      @id @default(autoincrement())
+  content   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
   // Relations
   senderId      String
   receiverId    String
   transactionId Int?
-  sender        User      @relation("SentMessages", fields: [senderId], references: [id])
-  receiver      User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  sender        User         @relation("SentMessages", fields: [senderId], references: [id])
+  receiver      User         @relation("ReceivedMessages", fields: [receiverId], references: [id])
   transaction   Transaction? @relation(fields: [transactionId], references: [id])
 }
 
 model moderationLog {
-  id           Int      @id @default(autoincrement())
-  moderatorId  String
-  listingId    Int
-  action       String
-  reason       String?
-  createdAt    DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  moderatorId String
+  listingId   Int
+  action      String
+  reason      String?
+  createdAt   DateTime @default(now())
 
   // Relations
-  listing   Listing  @relation(fields: [listingId], references: [id])
+  listing Listing @relation(fields: [listingId], references: [id])
 }
 
 enum ListingStatus {
@@ -162,6 +174,7 @@ enum ListingStatus {
   PENDING
   SOLD
   CANCELLED
+  INACTIVE
 }
 
 enum TxStatus {
@@ -175,4 +188,10 @@ enum Role {
   USER
   MODERATOR
   ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
 }

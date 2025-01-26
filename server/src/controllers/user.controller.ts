@@ -3,6 +3,7 @@ import { sendError, sendSuccess } from "../utils/response";
 import prisma from "../config/db";
 import cloudinary from "../config/cloudinary";
 import bcrypt from "bcryptjs";
+import { Prisma, UserStatus } from "@prisma/client";
 
 export const getProfile: RequestHandler = async (req, res): Promise<void> => {
   try {
@@ -193,6 +194,172 @@ export const changePassword: RequestHandler = async (
       .status(200)
       .json(sendSuccess({ message: "Password changed successfully" }));
   } catch (error) {
+    res.status(500).json(sendError((error as Error).message));
+  }
+};
+
+export const getUserById: RequestHandler = async (req, res): Promise<void> => {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        avatarUrl: true,
+        avatarId: true,
+        isVerified: true,
+        role: true,
+        reputationScore: true,
+        createdAt: true,
+        listings: {
+          select: {
+            id: true,
+            title: true,
+            price: true,
+            status: true,
+            createdAt: true,
+            game: {
+              select: {
+                title: true,
+              },
+            },
+          },
+        },
+        sellTransactions: {
+          select: {
+            id: true,
+            amount: true,
+            status: true,
+            createdAt: true,
+            buyer: {
+              select: {
+                username: true,
+              },
+            },
+          },
+          where: {
+            status: "COMPLETED",
+          },
+        },
+        sellerReviews: {
+          select: {
+            rating: true,
+            comment: true,
+            createdAt: true,
+            buyer: {
+              select: {
+                username: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      res.status(404).json(sendError("User not found"));
+      return;
+    }
+
+    const stats = {
+      totalListings: user.listings.length,
+      activeListings: user.listings.filter((l) => l.status === "ACTIVE").length,
+      completedSales: user.sellTransactions.length,
+      avgRating:
+        user.sellerReviews.reduce((acc, rev) => acc + rev.rating, 0) /
+          user.sellerReviews.length || 0,
+    };
+
+    res.status(200).json(
+      sendSuccess({
+        ...user,
+        stats,
+      })
+    );
+  } catch (error) {
+    res.status(500).json(sendError((error as Error).message));
+  }
+};
+
+export const updateUserStatus: RequestHandler = async (
+  req,
+  res
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body;
+    const adminId = req.user?.id;
+
+    // Validate status
+    const validStatus = Object.values(UserStatus).includes(
+      status as UserStatus
+    );
+    if (!validStatus) {
+      res.status(400).json(sendError("Invalid status value"));
+      return;
+    }
+
+    const userStatus = status as UserStatus;
+
+    // Check if user exists
+    const targetUser = await prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!targetUser) {
+      res.status(404).json(sendError("User not found"));
+      return;
+    }
+
+    // Don't allow banning other admins
+    if (targetUser.role === "ADMIN") {
+      res.status(403).json(sendError("Cannot modify admin status"));
+      return;
+    }
+
+    // Update user status
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: {
+        status: userStatus,
+        banReason: reason || null,
+        bannedAt: new Date() || null,
+        bannedById: adminId,
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        status: true,
+        banReason: true,
+        bannedAt: true,
+        bannedBy: {
+          select: {
+            username: true,
+          },
+        },
+      },
+    });
+
+    // Deactivate user's listings if banned/suspended
+    if (userStatus !== UserStatus.ACTIVE) {
+      await prisma.listing.updateMany({
+        where: {
+          userId: id,
+          status: "ACTIVE",
+        },
+        data: {
+          status: "INACTIVE",
+        },
+      });
+    }
+
+    res.status(200).json(sendSuccess(updatedUser));
+  } catch (error) {
+    // console.error("Error updating user status:", error);
     res.status(500).json(sendError((error as Error).message));
   }
 };
