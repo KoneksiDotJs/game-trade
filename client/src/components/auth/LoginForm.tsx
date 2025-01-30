@@ -6,6 +6,7 @@ import { FaEye, FaEyeSlash } from "react-icons/fa";
 import * as Yup from "yup";
 import { ForgotPasswordDialog } from "./ForgotPasswordDialog";
 import api from "@/lib/api/client";
+import { OAuthButtons } from "./OauthButtons";
 
 interface LoginFormProps {
   onSubmit: (credentials: { email: string; password: string }) => Promise<void>;
@@ -30,14 +31,14 @@ export function LoginForm({ onSubmit, onSwitchToRegister }: LoginFormProps) {
   const handleForgotPassword = async (values: { email: string }) => {
     setIsResetting(true);
     try {
-      await api.post('/auth/forgot-password', values);
-      toast.success('Password reset link has been sent to your email');
+      await api.post("/auth/forgot-password", values);
+      toast.success("Password reset link has been sent to your email");
       setIsForgotPasswordOpen(false);
     } catch (error) {
-      console.error('Failed to send reset link:', error);
-      toast.error('Failed to send reset link. Please try again.');
+      console.error("Failed to send reset link:", error);
+      toast.error("Failed to send reset link. Please try again.");
     } finally {
-      setIsResetting(false)
+      setIsResetting(false);
     }
   };
   return (
@@ -105,20 +106,20 @@ export function LoginForm({ onSubmit, onSwitchToRegister }: LoginFormProps) {
               />
             </div>
             <div className="flex justify-end mb-4">
-        <button
-          type="button"
-          onClick={() => setIsForgotPasswordOpen(true)}
-          className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
-        >
-          Forgot password?
-        </button>
-      </div>
-      <ForgotPasswordDialog
-        isOpen={isForgotPasswordOpen}
-        onClose={() => setIsForgotPasswordOpen(false)}
-        onSubmit={handleForgotPassword}
-        isLoading={isResetting}
-      />
+              <button
+                type="button"
+                onClick={() => setIsForgotPasswordOpen(true)}
+                className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
+              >
+                Forgot password?
+              </button>
+            </div>
+            <ForgotPasswordDialog
+              isOpen={isForgotPasswordOpen}
+              onClose={() => setIsForgotPasswordOpen(false)}
+              onSubmit={handleForgotPassword}
+              isLoading={isResetting}
+            />
             <button
               type="submit"
               disabled={isSubmitting}
@@ -126,6 +127,22 @@ export function LoginForm({ onSubmit, onSwitchToRegister }: LoginFormProps) {
             >
               {isSubmitting ? "Logging in..." : "Login"}
             </button>
+
+            {/* Add divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            {/* Add OAuth buttons */}
+            <OAuthButtons />
+
             <p className="text-center text-sm text-gray-600 dark:text-gray-400">
               Don&apos;t have an account?{" "}
               <button

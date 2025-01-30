@@ -3,6 +3,7 @@ import { ErrorMessage, Field, Form, Formik } from "formik";
 import * as Yup from "yup";
 import { useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { OAuthButtons } from "./OauthButtons";
 
 const validationSchema = Yup.object({
   username: Yup.string().required("Required"),
@@ -164,6 +165,21 @@ export function RegisterForm({ onSubmit, onSwitchToLogin }: RegisterFormProps) {
             >
               {isSubmitting ? "Registering..." : "Register"}
             </button>
+
+            {/* Add divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300 dark:border-gray-600" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            {/* Add OAuth buttons */}
+            <OAuthButtons />
             <p className="text-center text-sm text-gray-600 dark:text-gray-400">
               Already have an account?{" "}
               <button

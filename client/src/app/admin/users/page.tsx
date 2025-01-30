@@ -11,7 +11,7 @@ interface Column<T> {
   key: keyof T | string;
   label: string;
   sortable?: boolean;
-  render?: (value: unknown) => React.ReactNode;
+  render?: (value: unknown, row?: T) => React.ReactNode;
 }
 
 interface User {
@@ -91,7 +91,7 @@ export default function UsersPage() {
   const handleStatusChange = async (user: User, reason?: string) => {
     try {
       const newStatus = user.status === "ACTIVE" ? "BANNED" : "ACTIVE";
-      await api.patch(`/users/${user.id}/status`, {
+      await api.put(`/users/${user.id}/status`, {
         status: newStatus,
         reason,
       });
@@ -113,7 +113,7 @@ export default function UsersPage() {
     { key: "role", label: "Role", sortable: true },
     {
       key: "isVerified",
-      label: "Status",
+      label: "Verification",
       render: (value: unknown) => (
         <span
           className={`px-2 py-1 rounded-full text-xs ${
@@ -134,24 +134,27 @@ export default function UsersPage() {
     {
       key: "status",
       label: "Status",
-      render: (value: string) => (
-        <span
-          className={`px-2 py-1 rounded-full text-xs ${
-            value === "ACTIVE"
-              ? "bg-green-100 text-green-800"
-              : value === "BANNED"
-              ? "bg-red-100 text-red-800"
-              : "bg-yellow-100 text-yellow-800"
-          }`}
-        >
-          {value}
-        </span>
-      ),
+      render: (value: unknown, user?: User) => {
+        const status = user?.status || 'ACTIVE';
+        return (
+          <span
+            className={`px-2 py-1 rounded-full text-xs ${
+              status === "ACTIVE"
+                ? "bg-green-100 text-green-800"
+                : status === "BANNED"
+                ? "bg-red-100 text-red-800"
+                : "bg-yellow-100 text-yellow-800"
+            }`}
+          >
+            {status}
+          </span>
+        );
+      },
     },
     {
       key: "actions",
       label: "Actions",
-      render: (_: unknown, user: User) => (
+      render: (_: unknown, user?: User) => user ? (
         <button
           onClick={() => {
             if (user.status === "ACTIVE") {
@@ -169,7 +172,7 @@ export default function UsersPage() {
         >
           {user.status === "ACTIVE" ? "Ban" : "Activate"}
         </button>
-      ),
+      ) : null,
     },
   ];
 

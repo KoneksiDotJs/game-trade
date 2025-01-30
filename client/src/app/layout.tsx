@@ -17,7 +17,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body>
         <Providers>
-          <ErrorBoundary>{children}</ErrorBoundary>
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
           <Toaster position="top-right" />
         </Providers>
       </body>

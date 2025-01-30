@@ -6,7 +6,7 @@ import { FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
 interface Column<T> {
   key: keyof T | string;
   label: string;
-  render?: (value: unknown) => React.ReactNode;
+  render?: (value: T[keyof T], row?: T) => React.ReactNode;
   sortable?: boolean;
 }
 
@@ -15,7 +15,6 @@ interface DataTableProps<T> {
   data: T[];
   onEdit?: (item: T) => void;
   onDelete?: (item: T) => void;
-  pageSize?: number;
 }
 
 export function DataTable<T>({
@@ -23,9 +22,9 @@ export function DataTable<T>({
   data,
   onEdit,
   onDelete,
-  pageSize = 10,
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10; // Number of items per page
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc" | null;
@@ -36,14 +35,21 @@ export function DataTable<T>({
     if (!sortConfig.direction || !sortConfig.key) return 0;
 
     const getValue = (obj: Record<string, unknown>, path: string): unknown => {
-      return path.split(".").reduce((acc: unknown, part) => (acc as Record<string, unknown>)?.[part], obj);
+      return path
+        .split(".")
+        .reduce(
+          (acc: unknown, part) => (acc as Record<string, unknown>)?.[part],
+          obj
+        );
     };
 
     const aValue = getValue(a as Record<string, unknown>, sortConfig.key);
     const bValue = getValue(b as Record<string, unknown>, sortConfig.key);
 
-    if (String(aValue) < String(bValue)) return sortConfig.direction === "asc" ? -1 : 1;
-    if (String(aValue) > String(bValue)) return sortConfig.direction === "asc" ? 1 : -1;
+    if (String(aValue) < String(bValue))
+      return sortConfig.direction === "asc" ? -1 : 1;
+    if (String(aValue) > String(bValue))
+      return sortConfig.direction === "asc" ? 1 : -1;
     return 0;
   });
 
@@ -65,6 +71,8 @@ export function DataTable<T>({
     return sortConfig.direction === "asc" ? <FaSortUp /> : <FaSortDown />;
   };
 
+  // console.log("Table data:", data);
+  // console.log("Columns:", columns);
   return (
     <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
@@ -74,7 +82,9 @@ export function DataTable<T>({
               {columns.map((column) => (
                 <th
                   key={String(column.key)}
-                  onClick={() => column.sortable && handleSort(String(column.key))}
+                  onClick={() =>
+                    column.sortable && handleSort(String(column.key))
+                  }
                   className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider ${
                     column.sortable
                       ? "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
@@ -102,46 +112,21 @@ export function DataTable<T>({
                 key={index}
                 className="hover:bg-gray-50 dark:hover:bg-gray-700"
               >
-                {columns.map((column) => (
-                  <td
-                    key={String(column.key)}
-                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300"
-                  >
-                    {column.render
-                      ? column.render(
-                          String(column.key).includes(".")
-                            ? String(column.key)
-                                .split(".")
-                                .reduce((acc, curr) => (acc as Record<string, unknown>)[curr] as Record<string, unknown>, item as Record<string, unknown>)
-                            : item[column.key as keyof T]
-                        )
-                      : String(column.key).includes(".")
-                      ? String(String(column.key)
-                          .split(".")
-                          .reduce<unknown>((acc, curr) => (acc as Record<string, unknown>)?.[curr], item))
-                      : String(item[column.key as keyof T])}
-                  </td>
-                ))}
-                {(onEdit || onDelete) && (
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {onEdit && (
-                      <button
-                        onClick={() => onEdit(item)}
-                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-4"
-                      >
-                        Edit
-                      </button>
-                    )}
-                    {onDelete && (
-                      <button
-                        onClick={() => onDelete(item)}
-                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </td>
-                )}
+                {columns.map((column) => {
+                  const value = item[column.key as keyof T];
+                  return (
+                    <td
+                      key={String(column.key)}
+                      className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300"
+                    >
+                      {
+                        column.render
+                          ? column.render(value, item) // Always pass both value and row
+                          : value?.toString() ?? "" // Handle undefined values
+                      }
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
