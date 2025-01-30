@@ -6,7 +6,11 @@ import { RegisterDTO, LoginDTO } from "../types/auth.types";
 import { sendSuccess, sendError } from "../utils/response";
 import { config } from "../config/env";
 import { transporter } from "../config/mail";
-import { getResetPasswordTemplate, getVerificationEmailTemplate } from "../utils/mail-template";
+import {
+  getResetPasswordTemplate,
+  getVerificationEmailTemplate,
+} from "../utils/mail-template";
+import { Role, UserStatus } from "@prisma/client";
 
 export const register: RequestHandler<{}, any, RegisterDTO> = async (
   req,
@@ -34,11 +38,18 @@ export const register: RequestHandler<{}, any, RegisterDTO> = async (
     await transporter.sendMail({
       from: config.emailUser,
       to: email,
-      subject: 'Verify Your Email',
-      html: getVerificationEmailTemplate(token)
+      subject: "Verify Your Email",
+      html: getVerificationEmailTemplate(token),
     });
 
-    res.status(201).json(sendSuccess({ message: 'Please check your email to verify your account', token }));
+    res
+      .status(201)
+      .json(
+        sendSuccess({
+          message: "Please check your email to verify your account",
+          token,
+        })
+      );
   } catch (error) {
     res.status(400).json(sendError((error as Error).message));
   }
@@ -87,7 +98,7 @@ export const resendVerification: RequestHandler = async (
   try {
     const { email } = req.body;
     const user = await prisma.user.findUnique({ where: { email } });
-    
+
     if (!user) throw new Error("User not found");
     if (user.isVerified) throw new Error("Email already verified");
 
@@ -101,7 +112,7 @@ export const resendVerification: RequestHandler = async (
       from: config.emailUser,
       to: email,
       subject: "Verify Your Email",
-      html: getVerificationEmailTemplate(token)
+      html: getVerificationEmailTemplate(token),
     });
 
     res.json(sendSuccess({ message: "Verification email resent" }));
@@ -130,7 +141,17 @@ export const login: RequestHandler<{}, any, LoginDTO> = async (
       { expiresIn: "7d" }
     );
 
-    res.json(sendSuccess({ token, user: {id: user.id, email: user.email, usernmae: user.username, role: user.role} }));
+    res.json(
+      sendSuccess({
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          usernmae: user.username,
+          role: user.role,
+        },
+      })
+    );
   } catch (error) {
     res.status(401).json(sendError((error as Error).message));
   }
@@ -155,10 +176,12 @@ export const forgotPassword: RequestHandler = async (
       from: config.emailUser,
       to: email,
       subject: "Reset Password",
-      html: getResetPasswordTemplate(token)
+      html: getResetPasswordTemplate(token),
     });
 
-    res.json(sendSuccess({ message: "Reset password link sent to your email" }));
+    res.json(
+      sendSuccess({ message: "Reset password link sent to your email" })
+    );
   } catch (error) {
     res.status(400).json(sendError((error as Error).message));
   }
@@ -170,7 +193,7 @@ export const resetPassword: RequestHandler = async (
 ): Promise<void> => {
   try {
     const { token, newPassword } = req.body;
-    
+
     const decoded = jwt.verify(token, config.jwtSecret) as {
       id: string;
       email: string;
@@ -182,11 +205,57 @@ export const resetPassword: RequestHandler = async (
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
       where: { id: decoded.id },
-      data: { password: hashedPassword }
+      data: { password: hashedPassword },
     });
 
     res.json(sendSuccess({ message: "Password reset successfully" }));
   } catch (error) {
     res.status(400).json(sendError((error as Error).message));
+  }
+};
+
+export const handleSocialAuth: RequestHandler = async (
+  req,
+  res
+): Promise<void> => {
+  try {
+    const { email, name, image, provider } = req.body;
+
+    // check if user exists
+    let user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email,
+          username: name || email.split("@")[0],
+          password: "", // empty password for social auth
+          role: Role.USER,
+          status: UserStatus.ACTIVE,
+          image,
+          isVerified: true,
+          emailVerified: new Date(),
+        },
+      });
+    }
+
+    // generate jwt token
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      config.jwtSecret,
+      { expiresIn: "30d" }
+    );
+
+    res.json(
+      sendSuccess({
+        user,
+        token,
+        provider,
+      })
+    );
+  } catch (error) {
+    res.status(500).json(sendError((error as Error).message));
   }
 };

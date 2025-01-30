@@ -147,6 +147,7 @@ export const getAllUsers: RequestHandler = async (req, res): Promise<void> => {
         role: true,
         reputationScore: true,
         createdAt: true,
+        status: true
       },
     });
 
@@ -214,6 +215,7 @@ export const getUserById: RequestHandler = async (req, res): Promise<void> => {
         role: true,
         reputationScore: true,
         createdAt: true,
+        status: true,
         listings: {
           select: {
             id: true,

@@ -19,7 +19,7 @@ model User {
   avatarUrl       String? // Cloudinary secure URL
   avatarId        String? // Cloudinary public_id
   isVerified      Boolean    @default(false)
-  emailVerified DateTime?
+  emailVerified   DateTime?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 

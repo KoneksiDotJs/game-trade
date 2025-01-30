@@ -1,11 +1,12 @@
 import { Router } from "express";
-import { register, login, verifyEmail, resendVerification, forgotPassword, resetPassword } from "../controllers/auth.controller";
+import { register, login, verifyEmail, resendVerification, forgotPassword, resetPassword, handleSocialAuth } from "../controllers/auth.controller";
 import { validateLogin, validateRegister } from "../middleware/validate";
 
 const router = Router();
 
 router.post("/register", validateRegister, register);
 router.post("/login", validateLogin, login);
+router.post("/social", handleSocialAuth)
 router.get("/verify-email", verifyEmail);
 router.post("/resend-verification", resendVerification);
 router.post("/forgot-password", forgotPassword);
