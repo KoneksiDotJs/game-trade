@@ -10,7 +10,7 @@ export const routes = {
     login: "/admin/login",
     dashboard: "/",
     users: "/users",
-    games: "/admin/games",
+    games: "/games",
     categories: "/admin/categories",
     listings: "/admin/listings",
   },
