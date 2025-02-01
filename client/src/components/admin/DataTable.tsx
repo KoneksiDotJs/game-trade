@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { FaSort, FaSortUp, FaSortDown } from "react-icons/fa";
 
-interface Column<T> {
+export interface Column<T> {
   key: keyof T | string;
   label: string;
   render?: (value: T[keyof T], row?: T) => React.ReactNode;
@@ -16,6 +16,8 @@ interface DataTableProps<T> {
   onEdit?: (item: T) => void;
   onDelete?: (item: T) => void;
 }
+
+
 
 export function DataTable<T>({
   columns,

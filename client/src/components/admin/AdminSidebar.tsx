@@ -10,7 +10,7 @@ const menuItems = [
   { href: routes.admin.dashboard, label: "Dashboard", icon: MdDashboard },
   { href: routes.admin.users, label: "Users", icon: FaUsers },
   { href: routes.admin.games, label: "Games", icon: FaGamepad },
-  { href: "/admin/categories", label: "Categories", icon: FaTags },
+  { href: routes.admin.categories, label: "Categories", icon: FaTags },
   { href: "/admin/listings", label: "Listings", icon: FaList },
 ];
 

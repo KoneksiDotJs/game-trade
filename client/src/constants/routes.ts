@@ -11,7 +11,7 @@ export const routes = {
     dashboard: "/",
     users: "/users",
     games: "/games",
-    categories: "/admin/categories",
+    categories: "/categories",
     listings: "/admin/listings",
   },
 } as const;
