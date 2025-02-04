@@ -12,7 +12,7 @@ export const routes = {
     users: "/users",
     games: "/games",
     categories: "/categories",
-    listings: "/admin/listings",
+    listings: "/listings",
   },
 } as const;
 

@@ -11,7 +11,7 @@ const menuItems = [
   { href: routes.admin.users, label: "Users", icon: FaUsers },
   { href: routes.admin.games, label: "Games", icon: FaGamepad },
   { href: routes.admin.categories, label: "Categories", icon: FaTags },
-  { href: "/admin/listings", label: "Listings", icon: FaList },
+  { href: routes.admin.listings, label: "Listings", icon: FaList },
 ];
 
 export function AdminSidebar() {

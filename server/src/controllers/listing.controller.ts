@@ -249,6 +249,8 @@ export const deleteListing: RequestHandler = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
+    const {reason} = req.body
+    const userRole = req.user?.role;
     const userId = req.user?.id;
 
     const listing = await prisma.listing.findUnique({
@@ -256,6 +258,27 @@ export const deleteListing: RequestHandler = async (
     });
 
     if (!listing) throw new Error("Listing not found");
+
+    // admin deletion with reason
+    if (userRole === "ADMIN" || userRole === "MODERATOR") {
+      if (!reason) throw new Error("Reason is required for admin deletion")
+      if (!userId) throw new Error("User ID is required")
+
+        await prisma.moderationLog.create({
+          data: {
+            moderatorId: userId,
+            listingId: parseInt(id),
+            action: "DELETED",
+            reason
+          }
+        })
+
+        await prisma.listing.delete({
+          where: { id: parseInt(id) },
+        })
+
+        res.status(200).json(sendSuccess({message: "Listing deleted by admin"}))
+    }
     if (listing.userId !== userId) throw new Error("Unauthorized");
     if (listing.status === "SOLD")
       throw new Error("Cannot delete sold listing");

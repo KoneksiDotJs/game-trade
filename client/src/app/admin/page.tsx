@@ -21,6 +21,7 @@ interface Listing {
   status: string;
   price: number;
   user: {
+    id: number;
     username: string;
   };
   createdAt: string;
@@ -29,7 +30,7 @@ interface Listing {
 interface Column<T> {
   key: keyof T | string;
   label: string;
-  render?: (value: unknown) => React.ReactNode;
+  render?: (value: unknown, row?: T) => React.ReactNode;
 }
 
 export default function AdminDashboard() {
@@ -82,7 +83,11 @@ export default function AdminDashboard() {
 
   const listingColumns: Column<Listing>[] = [
     { key: "title", label: "Title" },
-    { key: "user.username", label: "Seller" },
+    {
+      key: "user.username",
+      label: "Seller",
+      render: (_: unknown, row?: Listing) => row?.user?.username || "N/A",
+    },
     {
       key: "price",
       label: "Price",
@@ -108,7 +113,8 @@ export default function AdminDashboard() {
     {
       key: "createdAt",
       label: "Listed",
-      render: (value: unknown) => new Date(value as string).toLocaleDateString(),
+      render: (value: unknown) =>
+        new Date(value as string).toLocaleDateString(),
     },
   ];
 

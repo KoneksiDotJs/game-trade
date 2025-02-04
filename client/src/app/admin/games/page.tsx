@@ -324,7 +324,11 @@ export default function GamesPage() {
       //   gameId: selectedGame.id,
       //   formDataEntries: Array.from(formData.entries())
       // });
-      await api.put(`/games/${selectedGame.id}`, formData);
+      await api.put(`/games/${selectedGame.id}`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
       // console.log('Update response:', response.data);
       
       toast.success("Game updated successfully");
