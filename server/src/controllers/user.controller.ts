@@ -374,3 +374,97 @@ export const updateUserStatus: RequestHandler = async (
     res.status(500).json(sendError((error as Error).message));
   }
 };
+
+export const getUserRegisterStats: RequestHandler = async (req, res): Promise<void> => {
+  try {
+    const { start, end, period = "daily" } = req.query;
+    const startDate = start ? new Date(start as string) : new Date(new Date().setDate(new Date().getDate() - 7));
+    const endDate = end ? new Date(end as string) : new Date();
+
+    // Generate date points
+    const datePoints = [];
+    let currentDate = new Date(startDate);
+
+    while (currentDate <= endDate) {
+      datePoints.push(new Date(currentDate));
+      if (period === "yearly") {
+        currentDate.setFullYear(currentDate.getFullYear() + 1);
+      } else if (period === "monthly") {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      } else {
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
+
+    // Get stats for each period
+    const periodStats = await Promise.all(
+      datePoints.map(async (date) => {
+        const nextDate = new Date(date);
+        if (period === "yearly") nextDate.setFullYear(date.getFullYear() + 1);
+        else if (period === "monthly") nextDate.setMonth(date.getMonth() + 1);
+        else nextDate.setDate(date.getDate() + 1);
+
+        const count = await prisma.user.count({
+          where: {
+            createdAt: {
+              gte: date,
+              lt: nextDate,
+            },
+          },
+        });
+
+        return {
+          date: period === "yearly" 
+            ? date.getFullYear().toString()
+            : period === "monthly"
+            ? date.toLocaleDateString("default", { month: "short", year: "numeric" })
+            : date.toLocaleDateString(),
+          newUsers: count,
+        };
+      })
+    );
+
+    // Calculate period comparison
+    const previousPeriodStart = new Date(startDate);
+    const periodLength = endDate.getTime() - startDate.getTime();
+    previousPeriodStart.setTime(startDate.getTime() - periodLength);
+
+    const [previousPeriodCount, currentPeriodCount] = await Promise.all([
+      prisma.user.count({
+        where: {
+          createdAt: {
+            gte: previousPeriodStart,
+            lt: startDate,
+          },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          createdAt: {
+            gte: startDate,
+            lt: endDate,
+          },
+        },
+      }),
+    ]);
+
+    const percentageChange = previousPeriodCount === 0 ? 100 :
+      ((currentPeriodCount - previousPeriodCount) / previousPeriodCount) * 100;
+
+    res.status(200).json(
+      sendSuccess({
+        period: {
+          stats: periodStats,
+          comparison: {
+            current: currentPeriodCount,
+            previous: previousPeriodCount,
+            percentage: Math.round(percentageChange * 100) / 100,
+            trend: percentageChange > 0 ? "up" : percentageChange < 0 ? "down" : "stable",
+          },
+        },
+      })
+    );
+  } catch (error) {
+    res.status(500).json(sendError((error as Error).message));
+  }
+};
