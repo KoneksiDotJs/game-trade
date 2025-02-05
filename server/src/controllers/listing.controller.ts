@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { sendError, sendSuccess } from "../utils/response";
 import prisma from "../config/db";
-import { ListingStatus } from "@prisma/client";
+import { Game, ListingImage, ListingStatus, ServiceType } from "@prisma/client";
 import cloudinary from "../config/cloudinary";
 
 export const createListing: RequestHandler = async (
@@ -132,6 +132,10 @@ export const getListings: RequestHandler = async (req, res): Promise<void> => {
       },
     });
 
+    if (!listings) {
+      throw new Error("Listing not found");
+    }
+
     res.status(200).json(sendSuccess(listings));
   } catch (error) {
     res.status(500).json(sendError((error as Error).message));
@@ -249,7 +253,7 @@ export const deleteListing: RequestHandler = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const {reason} = req.body
+    const { reason } = req.body;
     const userRole = req.user?.role;
     const userId = req.user?.id;
 
@@ -261,23 +265,25 @@ export const deleteListing: RequestHandler = async (
 
     // admin deletion with reason
     if (userRole === "ADMIN" || userRole === "MODERATOR") {
-      if (!reason) throw new Error("Reason is required for admin deletion")
-      if (!userId) throw new Error("User ID is required")
+      if (!reason) throw new Error("Reason is required for admin deletion");
+      if (!userId) throw new Error("User ID is required");
 
-        await prisma.moderationLog.create({
-          data: {
-            moderatorId: userId,
-            listingId: parseInt(id),
-            action: "DELETED",
-            reason
-          }
-        })
+      await prisma.moderationLog.create({
+        data: {
+          moderatorId: userId,
+          listingId: parseInt(id),
+          action: "DELETED",
+          reason,
+        },
+      });
 
-        await prisma.listing.delete({
-          where: { id: parseInt(id) },
-        })
+      await prisma.listing.delete({
+        where: { id: parseInt(id) },
+      });
 
-        res.status(200).json(sendSuccess({message: "Listing deleted by admin"}))
+      res
+        .status(200)
+        .json(sendSuccess({ message: "Listing deleted by admin" }));
     }
     if (listing.userId !== userId) throw new Error("Unauthorized");
     if (listing.status === "SOLD")
@@ -292,5 +298,194 @@ export const deleteListing: RequestHandler = async (
       .json(sendSuccess({ message: "Listing deleted successfully" }));
   } catch (error) {
     res.status(400).json(sendError((error as Error).message));
+  }
+};
+
+export const getListingStats: RequestHandler = async (
+  req,
+  res
+): Promise<void> => {
+  try {
+    const { start, end, period = "daily" } = req.query;
+    const startDate = start
+      ? new Date(start as string)
+      : new Date(new Date().setDate(new Date().getDate() - 7));
+    const endDate = end ? new Date(end as string) : new Date();
+
+    // Generate date points based on period
+    const datePoints = [];
+    let currentDate = new Date(startDate);
+
+    while (currentDate <= endDate) {
+      datePoints.push(new Date(currentDate));
+      if (period === "yearly") {
+        currentDate.setFullYear(currentDate.getFullYear() + 1);
+      } else if (period === "monthly") {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      } else {
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
+
+    // Fetch all stats in parallel
+    const [periodStats, statusStats, priceStats, gameStats] = await Promise.all(
+      [
+        // Daily new listings count
+        Promise.all(
+          datePoints.map(async (date) => {
+            const nextDate = new Date(date);
+            if (period === "yearly")
+              nextDate.setFullYear(date.getFullYear() + 1);
+            else if (period === "monthly")
+              nextDate.setMonth(date.getMonth() + 1);
+            else nextDate.setDate(date.getDate() + 1);
+
+            const [count, revenue] = await Promise.all([
+              prisma.listing.count({
+                where: {
+                  createdAt: {
+                    gte: date,
+                    lt: nextDate,
+                  },
+                },
+              }),
+              prisma.listing.aggregate({
+                where: {
+                  createdAt: {
+                    gte: date,
+                    lt: nextDate,
+                  },
+                },
+                _sum: {
+                  price: true,
+                },
+              }),
+            ]);
+
+            return {
+              date:
+                period === "yearly"
+                  ? date.getFullYear().toString()
+                  : period === "monthly"
+                  ? date.toLocaleDateString("default", {
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : date.toLocaleDateString(),
+              newListings: count,
+              revenue: revenue._sum.price || 0,
+            };
+          })
+        ),
+
+        // Status distribution
+        prisma.listing.groupBy({
+          by: ["status"],
+          _count: {
+            _all: true,
+          },
+          _avg: {
+            price: true,
+          },
+        }),
+
+        // Price statistics by category
+        prisma.listing.groupBy({
+          by: ["gameId"],
+          _count: true,
+          _avg: {
+            price: true,
+          },
+          _min: {
+            price: true,
+          },
+          _max: {
+            price: true,
+          },
+          where: {
+            status: "ACTIVE",
+          },
+        }),
+
+        // Most listed games
+        prisma.game.findMany({
+          take: 5,
+          include: {
+            _count: {
+              select: { listings: true },
+            },
+            category: true,
+          },
+          orderBy: {
+            listings: {
+              _count: "desc",
+            },
+          },
+        }),
+      ]
+    );
+
+    // Calculate period comparison
+    const previousPeriodStart = new Date(startDate);
+    const periodLength = endDate.getTime() - startDate.getTime();
+    previousPeriodStart.setTime(startDate.getTime() - periodLength);
+
+    const previousPeriodCount = await prisma.listing.count({
+      where: {
+        createdAt: {
+          gte: previousPeriodStart,
+          lt: startDate,
+        },
+      },
+    });
+
+    const currentPeriodCount = periodStats.reduce(
+      (sum, stat) => sum + stat.newListings,
+      0
+    );
+    const percentageChange =
+      previousPeriodCount === 0
+        ? 100
+        : ((currentPeriodCount - previousPeriodCount) / previousPeriodCount) *
+          100;
+
+    res.status(200).json(
+      sendSuccess({
+        period: {
+          stats: periodStats,
+          comparison: {
+            current: currentPeriodCount,
+            previous: previousPeriodCount,
+            percentage: Math.round(percentageChange * 100) / 100,
+            trend:
+              percentageChange > 0
+                ? "up"
+                : percentageChange < 0
+                ? "down"
+                : "stable",
+          },
+        },
+        statusDistribution: statusStats.map((stat) => ({
+          status: stat.status,
+          count: stat._count,
+          averagePrice: stat._avg.price || 0,
+        })),
+        priceStatistics: priceStats.map((stat) => ({
+          gameId: stat.gameId,
+          listingCount: stat._count,
+          averagePrice: stat._avg.price || 0,
+          minPrice: stat._min.price || 0,
+          maxPrice: stat._max.price || 0,
+        })),
+        popularGames: gameStats.map((game) => ({
+          id: game.id,
+          title: game.title,
+          category: game.category.name,
+          listingCount: game._count.listings,
+        })),
+      })
+    );
+  } catch (error) {
+    res.status(500).json(sendError((error as Error).message));
   }
 };
