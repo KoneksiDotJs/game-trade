@@ -18,6 +18,7 @@ interface ChartDataPoint {
 interface ChartProps {
   title: string;
   data: ChartDataPoint[];
+  format?: string;
 }
 
 export function Chart({ title, data }: ChartProps) {
